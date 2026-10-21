@@ -293,7 +293,7 @@
     pantalla = "escucha";
     let intervalo = null, wake = null;
     const reloj = h("div", { class: "reloj", role: "timer", "aria-live": "off" }, formato(C.SEGUNDOS_ESCUCHA * 1000));
-    const btn = h("button", { class: "principal" }, "Comenzar los tres minutos");
+    const btn = h("button", { class: "principal" }, "Comenzar el minuto de escucha");
     const saltar = h("button", { class: "enlace", onclick: seguir }, "Pasar directo a las preguntas");
     function formato(ms) {
       const s = Math.max(0, Math.ceil(ms / 1000));
@@ -328,7 +328,7 @@
     mostrar(
       h("h1", null, C.PUNTOS.find((p) => p.id === borrador.punto).nombre),
       h("div", { class: "tarjeta" },
-        h("p", null, "Escuche el ambiente sonoro durante tres minutos, en silencio y sin caminar, usando todos los sentidos. Después responda las preguntas, sin apurarse."),
+        h("p", null, "Escuche el ambiente sonoro durante un minuto, en silencio y sin caminar, usando todos los sentidos. Después responda las preguntas, sin apurarse."),
         reloj),
       h("div", { class: "acciones" }, btn), h("p", null, saltar));
     alSalir = () => { clearInterval(intervalo); if (wake) wake.release().catch(() => {}); };

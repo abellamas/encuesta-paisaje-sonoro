@@ -40,7 +40,7 @@ const servidor = http.createServer((req, res) => {
   const ruta = path.join(RAIZ, f);
   if (!ruta.startsWith(RAIZ) || !fs.existsSync(ruta)) { res.writeHead(404); return res.end(); }
   let datos = fs.readFileSync(ruta);
-  if (f.startsWith("/config.js")) datos = Buffer.from(datos.toString().replace(/ENDPOINT: "[^"]*"/, 'ENDPOINT: "/api"').replace("SEGUNDOS_ESCUCHA: 180", "SEGUNDOS_ESCUCHA: 3"));
+  if (f.startsWith("/config.js")) datos = Buffer.from(datos.toString().replace(/ENDPOINT: "[^"]*"/, 'ENDPOINT: "/api"').replace("SEGUNDOS_ESCUCHA: 60", "SEGUNDOS_ESCUCHA: 3"));
   res.writeHead(200, { "Content-Type": MIME[path.extname(f)] || "application/octet-stream" });
   res.end(datos);
 });
@@ -150,7 +150,7 @@ async function main() {
   await dormir(200);
   await captura("06-escucha");
   assert.equal(await js("document.body.dataset.parte"), "B", "la escucha ya es de la Parte B");
-  await boton("Comenzar los tres minutos");
+  await boton("Comenzar el minuto de escucha");
   await dormir(3700);
   assert.ok((await texto()).includes("Listo"));
   await boton("Continuar con las preguntas");
