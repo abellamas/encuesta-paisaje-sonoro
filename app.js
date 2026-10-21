@@ -173,22 +173,8 @@
   // ---- flujo --------------------------------------------------------------------------
   function pantallaConsentimiento() {
     const chk = h("input", { type: "checkbox", id: "acepto" });
-    const cod = h("input", { type: "text", id: "codigo", autocomplete: "off", autocapitalize: "characters", maxlength: 6, placeholder: "Opcional" });
-    const err = h("div", { "aria-live": "polite" });
     const btn = h("button", { class: "principal", disabled: true, onclick: () => {
-      const ingresado = cod.value.trim().toUpperCase();
-      if (ingresado && !L.codigoValido(ingresado)) {
-        err.replaceChildren(h("p", { class: "mensaje error" }, "El código no es válido. Tiene 6 letras o números. Déjelo vacío si es la primera vez."));
-        return;
-      }
-      if (ingresado) {
-        persona.codigo = ingresado;
-        persona.parteA_ok = true;             // ya la completó con ese código
-        persona.parteA_enviada = true;
-        persona.consentimiento_enviado = true;
-      } else {
-        persona.codigo = L.nuevoCodigo(rng);
-      }
+      persona.codigo = L.nuevoCodigo(rng);   // interno: une las respuestas de la misma persona, nadie lo ve
       persona.consintio = true;
       guardar();
       siguientePantalla();
@@ -200,10 +186,7 @@
         h("p", null, "Esta encuesta forma parte de una investigación sobre cómo las personas perciben los sonidos en los parques. Es ", h("strong", null, "anónima y voluntaria"), ", puede dejar de responder cuando quiera y ", h("strong", null, "todas las preguntas son opcionales"), ". Las respuestas se usarán sólo con fines de investigación y se guardarán sin su nombre."),
         h("label", { class: "consent", for: "acepto" }, chk, h("span", null, "Acepto participar.")),
         h("p", { class: "suave" }, "Duración aproximada, entre 15 y 20 minutos en total, repartidos en tres puntos del parque.")),
-      h("div", { class: "tarjeta" },
-        h("label", { for: "codigo", style: "font-weight:600;display:block;margin-bottom:4px" }, "¿Ya tiene un código?"),
-        h("p", { class: "ayuda" }, "Sólo si ya empezó en otro celular. Si es la primera vez, déjelo vacío."), cod),
-      err, h("div", { class: "acciones" }, btn));
+      h("div", { class: "acciones" }, btn));
   }
 
   function pasoA(i) {
@@ -228,8 +211,6 @@
     mostrar(
       h("h1", null, completos ? "¡Muchas gracias!" : "Punto de escucha"),
       h("div", { class: "tarjeta" },
-        h("p", null, "Su código es ", h("span", { class: "codigo" }, persona.codigo), "."),
-        h("p", { class: "suave" }, "Anótelo. Si cambia de celular, puede ingresarlo al empezar para seguir con el mismo participante."),
         h("ul", { class: "puntos" }, C.PUNTOS.map((p) => h("li", null, h("span", null, p.nombre), hechos.includes(p.id) ? h("span", { class: "hecho" }, "Respondido") : h("span", { class: "suave" }, "Pendiente"))))),
       completos ? h("p", null, "Completó los tres puntos. Puede cerrar esta página.") : h("div", { class: "tarjeta" },
         h("label", { for: "punto", style: "font-weight:600;display:block;margin-bottom:8px" }, "¿En qué punto de escucha está ahora?"), sel),
