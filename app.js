@@ -79,8 +79,16 @@
 
   function radio(nombre, op, actual, alElegir) {
     const input = h("input", { type: "radio", name: nombre, value: String(op.v), "aria-label": op.aria || op.t });
-    if (actual !== undefined && actual !== null && String(actual) === String(op.v)) input.checked = true;
-    input.addEventListener("change", () => alElegir(op.v));
+    if (actual !== undefined && actual !== null && String(actual) === String(op.v)) { input.checked = true; input.dataset.sel = "1"; }
+    input.addEventListener("click", () => {
+      if (input.dataset.sel === "1") {     // tocar de nuevo la opción elegida la borra
+        input.checked = false; input.dataset.sel = ""; alElegir(null); return;
+      }
+      document.querySelectorAll('input[type="radio"][name="' + nombre + '"]').forEach((r) => { r.dataset.sel = ""; });
+      input.dataset.sel = "1";
+      alElegir(op.v);
+    });
+    input.addEventListener("keydown", (e) => { if (e.key === " " && input.dataset.sel === "1") { e.preventDefault(); input.click(); } });
     return h("label", { class: "opcion" }, input, h("span", null, op.t));
   }
 
@@ -217,6 +225,7 @@
       siguiente();
     } }, textoSiguiente);
     mostrar(h("h1", null, titulo), progreso("Paso " + (i + 1) + " de " + n, i + 1, n),
+      h("p", { class: "suave" }, "Para borrar una respuesta, toque de nuevo la opción elegida."),
       h("div", { class: "tarjeta" }, cuerpo), msg,
       h("div", { class: "acciones" }, atras && h("button", { onclick: atras }, "Atrás"), btnSig));
   }

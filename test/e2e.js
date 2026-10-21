@@ -125,6 +125,15 @@ async function main() {
   assert.equal(await js("getComputedStyle(document.querySelector('h1')).color"), "rgb(36, 99, 154)", "la Parte A va en azul");
   assert.equal(await js("document.body.dataset.parte"), "A");
   await elegir("¿Vive a diez minutos", "Sí");
+  // tocar de nuevo la opción elegida la borra, de la pantalla y de lo guardado
+  await elegir("¿Vive a diez minutos", "Sí");
+  assert.equal(await js("document.querySelectorAll('#app input[type=radio]:checked').length"), 0, "debe quedar sin elegir");
+  assert.equal(await js("JSON.parse(localStorage.getItem('persona')).parteA.A1_vive_cerca"), null, "también se borra lo guardado");
+  await elegir("¿Vive a diez minutos", "No");
+  assert.equal(await js("JSON.parse(localStorage.getItem('persona')).parteA.A1_vive_cerca"), "no");
+  await elegir("¿Vive a diez minutos", "No");
+  await elegir("¿Vive a diez minutos", "Sí");
+  assert.equal(await js("JSON.parse(localStorage.getItem('persona')).parteA.A1_vive_cerca"), "si");
   await js(`(()=>{const i=document.querySelector('input[type=number]'); i.value='35'; i.dispatchEvent(new Event('input',{bubbles:true}));})()`);
   await elegir("¿Cuál es su género", "Femenino");
   await boton("Siguiente");
