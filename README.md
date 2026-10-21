@@ -34,6 +34,12 @@ planilla y conectarla.
 
 Si cambia el script, hay que volver a *Implementar > Administrar implementaciones* y crear una versión nueva.
 
+## Si se cambia algún archivo
+
+GitHub Pages deja que el celular guarde los archivos hasta diez minutos. Para que todos bajen la versión nueva,
+cambiar el número que sigue a `?v=` en las líneas de `index.html` (por ejemplo de `20261021b` a `20261022a`)
+antes de subir el cambio.
+
 ## Antes de salir al campo
 
 - Probarla en el parque con dos o tres teléfonos distintos (Android e iPhone) y con poca señal.

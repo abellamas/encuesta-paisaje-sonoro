@@ -40,7 +40,7 @@ const servidor = http.createServer((req, res) => {
   const ruta = path.join(RAIZ, f);
   if (!ruta.startsWith(RAIZ) || !fs.existsSync(ruta)) { res.writeHead(404); return res.end(); }
   let datos = fs.readFileSync(ruta);
-  if (f === "/config.js") datos = Buffer.from(datos.toString().replace(/ENDPOINT: "[^"]*"/, 'ENDPOINT: "/api"').replace("SEGUNDOS_ESCUCHA: 180", "SEGUNDOS_ESCUCHA: 3"));
+  if (f.startsWith("/config.js")) datos = Buffer.from(datos.toString().replace(/ENDPOINT: "[^"]*"/, 'ENDPOINT: "/api"').replace("SEGUNDOS_ESCUCHA: 180", "SEGUNDOS_ESCUCHA: 3"));
   res.writeHead(200, { "Content-Type": MIME[path.extname(f)] || "application/octet-stream" });
   res.end(datos);
 });
@@ -203,12 +203,15 @@ async function main() {
   await boton("Comenzar"); await boton("Pasar directo");
   // botón "Ir al inicio": pregunta antes, y si se confirma vuelve a elegir el punto
   assert.equal(await js("document.getElementById('btn-inicio').hidden"), false, "debe verse durante la encuesta");
-  await js("window.__preguntas=[]; window.confirm=(m)=>{window.__preguntas.push(m); return false;}");
   await clic("#btn-inicio");
+  await dormir(100);
+  assert.ok(await js("!!document.querySelector('.modal')"), "debe aparecer la pregunta");
+  assert.ok((await js("document.querySelector('.modal').innerText")).includes("Se perderán"), "debe avisar de lo que se pierde");
+  await clic("#dlg-no");
   assert.ok((await texto()).includes("Paso 1 de 5"), "si no confirma, se queda donde estaba");
-  assert.equal((await js("window.__preguntas")).length, 1);
-  await js("window.confirm=(m)=>{window.__preguntas.push(m); return true;}");
+  assert.equal(await js("!!document.querySelector('.modal')"), false);
   await clic("#btn-inicio");
+  await clic("#dlg-si");
   await dormir(200);
   assert.ok((await texto()).includes("Universidad Nacional de Tres de Febrero"), "confirmando vuelve a la primera pantalla");
   assert.ok((await texto()).includes("Ya aceptó participar"), "no vuelve a pedir el consentimiento a quien ya aceptó");

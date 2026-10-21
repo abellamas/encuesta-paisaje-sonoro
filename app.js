@@ -46,6 +46,27 @@
     window.scrollTo(0, 0);
     app.focus({ preventScroll: true });
   }
+  // Pregunta de sí o no dentro de la página. Reemplaza a confirm(), que varios navegadores internos bloquean.
+  function preguntar(mensaje, si, no) {
+    return new Promise((resolve) => {
+      const previo = document.activeElement;
+      const cerrar = (v) => {
+        document.removeEventListener("keydown", tecla);
+        fondo.remove();
+        if (previo && previo.focus) previo.focus();
+        resolve(v);
+      };
+      const tecla = (e) => { if (e.key === "Escape") cerrar(false); };
+      const bNo = h("button", { type: "button", id: "dlg-no", onclick: () => cerrar(false) }, no || "No");
+      const bSi = h("button", { type: "button", id: "dlg-si", class: "principal", onclick: () => cerrar(true) }, si || "Sí");
+      const fondo = h("div", { class: "modal-fondo" },
+        h("div", { class: "modal", role: "alertdialog", "aria-modal": "true", "aria-labelledby": "dlg-msg" },
+          h("p", { id: "dlg-msg" }, mensaje), h("div", { class: "acciones" }, bNo, bSi)));
+      document.body.append(fondo);
+      document.addEventListener("keydown", tecla);
+      bNo.focus();
+    });
+  }
   let _uid = 0;
   const uid = () => "q" + (++_uid);
 
@@ -67,12 +88,12 @@
   function actualizarBotonInicio() {
     btnInicio.hidden = !(persona.consintio && pantalla !== "consentimiento");
   }
-  btnInicio.addEventListener("click", () => {
+  btnInicio.addEventListener("click", async () => {
     const enB = pantalla === "escucha" || pantalla === "parteB";
     let msg = "¿Quiere ir a la primera pantalla?";
     if (enB) msg += " Se perderán las respuestas de este punto que todavía no envió.";
     else if (pantalla === "parteA") msg += " Las respuestas de la Parte A quedan guardadas.";
-    if (!confirm(msg)) return;
+    if (!(await preguntar(msg, "Sí, ir al inicio", "No, seguir acá"))) return;
     if (enB) borrador = null;
     guardar();
     pantallaConsentimiento();
@@ -254,10 +275,10 @@
         h("label", { for: "punto", style: "font-weight:600;display:block;margin-bottom:8px" }, "¿En qué punto de escucha está ahora?"), sel),
       err,
       h("div", { class: "acciones" },
-        completos ? null : h("button", { class: "principal", onclick: () => {
+        completos ? null : h("button", { class: "principal", onclick: async () => {
           const id = Number(sel.value);
           if (!id) { err.replaceChildren(h("p", { class: "mensaje error" }, "Elija el punto de escucha en el que está.")); return; }
-          if (hechos.includes(id) && !confirm("Ya respondió este punto. ¿Quiere responderlo de nuevo?")) return;
+          if (hechos.includes(id) && !(await preguntar("Ya respondió este punto. ¿Quiere responderlo de nuevo?", "Sí, de nuevo", "No"))) return;
           borrador = { fase: "escucha", punto: id, paso: 0, resp: {}, orden: L.barajar(Q.ATRIBUTOS.map((a) => a.id), rng), inicio: null, escucha_hasta: null };
           guardar(); pantallaEscucha();
         } }, "Comenzar")),
@@ -368,8 +389,8 @@
     const a = h("a", { href: URL.createObjectURL(new Blob([datos], { type: "application/json" })), download: "respuestas-" + (persona.codigo || "sin-codigo") + ".json" });
     document.body.append(a); a.click(); a.remove();
   }
-  function otraPersona() {
-    if (!confirm("Se empezará con un participante nuevo. Las respuestas ya enviadas no se pierden. ¿Continuar?")) return;
+  async function otraPersona() {
+    if (!(await preguntar("Se empezará con un participante nuevo. Las respuestas ya enviadas no se pierden. ¿Continuar?", "Sí, empezar", "No"))) return;
     persona = { codigo: null, consintio: false, consentimiento_enviado: false, parteA: {}, parteA_ok: false, parteA_enviada: false, paso_A: 0, puntos_hechos: [] };
     borrador = null; guardar(); pantallaConsentimiento();
   }
