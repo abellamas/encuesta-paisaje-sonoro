@@ -210,10 +210,14 @@ async function main() {
   await js("window.confirm=(m)=>{window.__preguntas.push(m); return true;}");
   await clic("#btn-inicio");
   await dormir(200);
-  assert.ok((await texto()).includes("¿En qué punto de escucha está ahora?"), "confirmando vuelve a elegir el punto");
-  assert.equal(await js("document.getElementById('btn-inicio').hidden"), true, "no se muestra en esa pantalla");
+  assert.ok((await texto()).includes("Universidad Nacional de Tres de Febrero"), "confirmando vuelve a la primera pantalla");
+  assert.ok((await texto()).includes("Ya aceptó participar"), "no vuelve a pedir el consentimiento a quien ya aceptó");
+  assert.equal(await js("document.getElementById('btn-inicio').hidden"), true, "no se muestra en la primera pantalla");
   assert.equal(await js("localStorage.getItem('borrador')"), null, "se descarta el punto a medias");
   await captura("14-ir-al-inicio");
+  await boton("Continuar mi encuesta");
+  await dormir(200);
+  assert.ok((await texto()).includes("¿En qué punto de escucha está ahora?"), "continuar lleva a elegir el punto");
   await elegirPunto(3);
   await boton("Comenzar"); await boton("Pasar directo");
   await recorrer(5, "Enviar respuestas");

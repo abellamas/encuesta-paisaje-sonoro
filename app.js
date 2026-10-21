@@ -65,17 +65,17 @@
   // ---- botón "Ir al inicio" ------------------------------------------------------------
   const btnInicio = document.getElementById("btn-inicio");
   function actualizarBotonInicio() {
-    btnInicio.hidden = !(persona.consintio && ["parteA", "escucha", "parteB"].includes(pantalla));
+    btnInicio.hidden = !(persona.consintio && pantalla !== "consentimiento");
   }
   btnInicio.addEventListener("click", () => {
     const enB = pantalla === "escucha" || pantalla === "parteB";
-    const msg = enB
-      ? "¿Quiere ir al inicio? Se perderán las respuestas de este punto que todavía no envió."
-      : "¿Quiere ir al inicio de esta parte? Sus respuestas quedan guardadas.";
+    let msg = "¿Quiere ir a la primera pantalla?";
+    if (enB) msg += " Se perderán las respuestas de este punto que todavía no envió.";
+    else if (pantalla === "parteA") msg += " Las respuestas de la Parte A quedan guardadas.";
     if (!confirm(msg)) return;
-    if (enB) borrador = null; else persona.paso_A = 0;
+    if (enB) borrador = null;
     guardar();
-    siguientePantalla();
+    pantallaConsentimiento();
   });
 
   // ---- aviso de envíos ----------------------------------------------------------------
@@ -198,6 +198,17 @@
   // ---- flujo --------------------------------------------------------------------------
   function pantallaConsentimiento() {
     pantalla = "consentimiento";
+    const intro = h("p", null, "Esta encuesta forma parte de una investigación de la Universidad Nacional de Tres de Febrero, de la carrera de Ingeniería de Sonido, sobre cómo las personas perciben los sonidos en los parques. Es ", h("strong", null, "anónima y voluntaria"), ", puede dejar de responder cuando quiera y ", h("strong", null, "todas las preguntas son opcionales"), ". Las respuestas se usarán sólo con fines de investigación y se guardarán sin su nombre.");
+    const duracion = h("p", { class: "suave" }, "Duración aproximada, entre 15 y 20 minutos en total, repartidos en tres puntos del parque.");
+    if (persona.consintio) {
+      // Ya aceptó: se puede seguir con la misma persona o empezar con otra.
+      mostrar(
+        h("h1", null, "Paisaje sonoro en parques urbanos"),
+        h("div", { class: "tarjeta" }, intro, h("p", { class: "mensaje ok" }, "Ya aceptó participar."), duracion),
+        h("div", { class: "acciones" }, h("button", { class: "principal", onclick: siguientePantalla }, "Continuar mi encuesta")),
+        h("p", null, h("button", { class: "enlace", onclick: otraPersona }, "Empezar con otro participante")));
+      return;
+    }
     const chk = h("input", { type: "checkbox", id: "acepto" });
     const btn = h("button", { class: "principal", disabled: true, onclick: () => {
       persona.codigo = L.nuevoCodigo(rng);   // interno: une las respuestas de la misma persona, nadie lo ve
@@ -208,10 +219,9 @@
     chk.addEventListener("change", () => { btn.disabled = !chk.checked; });
     mostrar(
       h("h1", null, "Paisaje sonoro en parques urbanos"),
-      h("div", { class: "tarjeta" },
-        h("p", null, "Esta encuesta forma parte de una investigación de la Universidad Nacional de Tres de Febrero, de la carrera de Ingeniería de Sonido, sobre cómo las personas perciben los sonidos en los parques. Es ", h("strong", null, "anónima y voluntaria"), ", puede dejar de responder cuando quiera y ", h("strong", null, "todas las preguntas son opcionales"), ". Las respuestas se usarán sólo con fines de investigación y se guardarán sin su nombre."),
+      h("div", { class: "tarjeta" }, intro,
         h("label", { class: "consent", for: "acepto" }, chk, h("span", null, "Acepto participar.")),
-        h("p", { class: "suave" }, "Duración aproximada, entre 15 y 20 minutos en total, repartidos en tres puntos del parque.")),
+        duracion),
       h("div", { class: "acciones" }, btn));
   }
 
