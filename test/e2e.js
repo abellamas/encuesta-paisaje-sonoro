@@ -40,7 +40,7 @@ const servidor = http.createServer((req, res) => {
   const ruta = path.join(RAIZ, f);
   if (!ruta.startsWith(RAIZ) || !fs.existsSync(ruta)) { res.writeHead(404); return res.end(); }
   let datos = fs.readFileSync(ruta);
-  if (f === "/config.js") datos = Buffer.from(datos.toString().replace('ENDPOINT: ""', 'ENDPOINT: "/api"').replace("SEGUNDOS_ESCUCHA: 180", "SEGUNDOS_ESCUCHA: 3"));
+  if (f === "/config.js") datos = Buffer.from(datos.toString().replace(/ENDPOINT: "[^"]*"/, 'ENDPOINT: "/api"').replace("SEGUNDOS_ESCUCHA: 180", "SEGUNDOS_ESCUCHA: 3"));
   res.writeHead(200, { "Content-Type": MIME[path.extname(f)] || "application/octet-stream" });
   res.end(datos);
 });
@@ -90,67 +90,81 @@ async function main() {
   await cdp("Runtime.enable");
   ws.addEventListener("message", (m) => { const d = JSON.parse(m.data); if (d.method === "Runtime.exceptionThrown") errores.push(JSON.stringify(d.params.exceptionDetails.exception || d.params.exceptionDetails)); });
 
+  // Contesta todo lo que quede sin responder en la pantalla actual (radios, número, texto).
+  const completar = () => js(`(()=>{
+    const grupos={};
+    document.querySelectorAll('#app input[type=radio]').forEach(r=>{(grupos[r.name]=grupos[r.name]||[]).push(r)});
+    for(const g of Object.values(grupos)){ if(!g.some(r=>r.checked)) g[Math.min(1,g.length-1)].click(); }
+    document.querySelectorAll('#app input[type=number]').forEach(i=>{ if(i.value===''){ i.value='40'; i.dispatchEvent(new Event('input',{bubbles:true})); }});
+    document.querySelectorAll('#app textarea').forEach(t=>{ if(!t.value){ t.value='Respuesta de prueba'; t.dispatchEvent(new Event('input',{bubbles:true})); }});
+    return true;})()`);
+  const elegirPunto = (id) => js(`(()=>{const s=document.getElementById('punto'); s.value='${id}'; s.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+  // Recorre la Parte A completa (3 pasos) o la Parte B completa (5 pasos) contestando todo.
+  const recorrer = async (pasos, ultimo) => {
+    for (let i = 0; i < pasos; i++) {
+      await completar();
+      assert.ok(!(await texto()).includes("sin responder"), "no debería haber avisos si está todo contestado");
+      await boton(i < pasos - 1 ? "Siguiente" : ultimo);
+      await dormir(120);
+    }
+  };
+
   // 1. consentimiento
   await cargar();
   await captura("01-consentimiento");
-  assert.ok((await texto()).includes("Acepto participar"));
+  const inicio = await texto();
+  assert.ok(inicio.includes("Universidad Nacional de Tres de Febrero") && inicio.includes("Ingeniería de Sonido"), "debe aclarar universidad y carrera");
+  assert.ok(!inicio.toLowerCase().includes("código"), "no se pide ningún código");
   assert.equal(await js("document.querySelector('button.principal').disabled"), true, "no debe poder empezar sin aceptar");
+  assert.equal(await js("document.getElementById('btn-inicio').hidden"), true);
   await clic("#acepto"); await clic("button.principal");
 
-  // 2. Parte A
+  // 2. Parte A: primero el aviso de preguntas sin responder, después todo contestado
   await dormir(200);
   await captura("02-parteA-1");
   await elegir("¿Vive a diez minutos", "Sí");
   await js(`(()=>{const i=document.querySelector('input[type=number]'); i.value='35'; i.dispatchEvent(new Event('input',{bubbles:true}));})()`);
   await elegir("¿Cuál es su género", "Femenino");
-  await boton("Siguiente");                         // faltan A4, aparece el aviso
+  await boton("Siguiente");
   assert.ok((await texto()).includes("sin responder"), "debe avisar de lo que falta");
-  await boton("Siguiente");                         // y deja seguir
-  await elegir("¿Se considera una persona con audición normal", "Sí");
-  await elegir("¿Con qué frecuencia visita", "Fines de semana");
-  await captura("03-parteA-2");
-  await boton("Siguiente"); await boton("Siguiente");   // faltan A6 y A7: avisa y deja seguir
-  await elegir("Durante las últimas dos semanas", "x").catch(() => {});
-  await captura("04-parteA-3-who5");
-  await boton("Terminar esta parte"); await boton("Terminar esta parte");
+  await recorrer(3, "Terminar esta parte");
 
   // 3. elegir el punto en el desplegable
   await dormir(200);
   await captura("05-elegir-punto");
-  await boton("Comenzar");                          // sin elegir: debe quejarse
+  await boton("Comenzar");
   assert.ok((await texto()).includes("Elija el punto"));
-  await js(`(()=>{const s=document.getElementById('punto'); s.value='2'; s.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+  await elegirPunto(2);
   await boton("Comenzar");
   await dormir(200);
   await captura("06-escucha");
   await boton("Comenzar los tres minutos");
-  await dormir(3700);                               // la prueba usa 3 s
+  await dormir(3700);
   assert.ok((await texto()).includes("Listo"));
   await boton("Continuar con las preguntas");
 
   // 4. Parte B, con un cierre del navegador a mitad de camino
   await dormir(200);
   await captura("07-B1");
-  await elegir("¿Hasta qué punto puede oír", "x").catch(() => {});
   await js(`(()=>{const f=[...document.querySelectorAll('fieldset.fila')].find(f=>f.innerText.startsWith('Sonidos naturales')); f.querySelectorAll('label.opcion')[3].querySelector('input').click();})()`);
-  await boton("Siguiente"); await boton("Siguiente");
+  await completar(); await boton("Siguiente");
   const orden1 = await js("JSON.parse(localStorage.getItem('borrador')).orden.join('-')");
   await dormir(100);
   await captura("08-B2-atributos");
   await js(`(()=>{const f=[...document.querySelectorAll('fieldset.fila')].find(f=>f.querySelector('legend').innerText==='agradable'); f.querySelectorAll('label.opcion')[4].querySelector('input').click();})()`);
   // ---- se cierra el navegador acá (recarga) ----
   await cargar();
-  const tras = await texto();
-  assert.ok(tras.includes("Paso 2 de 5"), "debe volver al paso donde estaba: " + tras.slice(0, 80));
+  assert.ok((await texto()).includes("Paso 2 de 5"), "debe volver al paso donde estaba");
   assert.equal(await js(`[...document.querySelectorAll('fieldset.fila')].find(f=>f.querySelector('legend').innerText==='agradable').querySelector('input:checked').nextSibling.textContent`), "5");
   assert.equal(await js("JSON.parse(localStorage.getItem('borrador')).orden.join('-')"), orden1, "el orden de los atributos no debe cambiar al recargar");
-  await boton("Siguiente"); await boton("Siguiente");   // B2 incompleta: avisa y deja seguir
+  await completar(); await boton("Siguiente");
   await captura("09-B3-B6");
   await elegir("En general, ¿cómo describiría", "Bueno");
-  await boton("Siguiente"); await boton("Siguiente");
+  await completar(); await boton("Siguiente");
   await js(`(()=>{const f=document.querySelectorAll('fieldset.fila')[0]; f.querySelectorAll('label.opcion')[5].querySelector('input').click();})()`);
+  await completar();
   await captura("10-B7");
-  await boton("Siguiente"); await boton("Siguiente");
+  await boton("Siguiente");
   await js(`(()=>{const t=document.querySelector('textarea'); t.value='Pájaros; me molestó el colectivo'; t.dispatchEvent(new Event('input',{bubbles:true}));})()`);
   await captura("11-B8");
 
@@ -184,18 +198,44 @@ async function main() {
   // 6. segundo punto: la Parte A no se vuelve a pedir y el consentimiento no se repite
   await boton("Seguir con otro punto");
   await dormir(200);
-  const hub = await texto();
-  assert.ok(hub.includes("Respondido"), "debe marcar el punto hecho");
-  await js(`(()=>{const s=document.getElementById('punto'); s.value='3'; s.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+  assert.ok((await texto()).includes("Respondido"), "debe marcar el punto hecho");
+  await elegirPunto(3);
   await boton("Comenzar"); await boton("Pasar directo");
-  for (let i = 0; i < 8; i++) await boton("Siguiente");   // cuatro pasos, cada uno avisa y deja seguir
-  await boton("Enviar respuestas");
+  // botón "Ir al inicio": pregunta antes, y si se confirma vuelve a elegir el punto
+  assert.equal(await js("document.getElementById('btn-inicio').hidden"), false, "debe verse durante la encuesta");
+  await js("window.__preguntas=[]; window.confirm=(m)=>{window.__preguntas.push(m); return false;}");
+  await clic("#btn-inicio");
+  assert.ok((await texto()).includes("Paso 1 de 5"), "si no confirma, se queda donde estaba");
+  assert.equal((await js("window.__preguntas")).length, 1);
+  await js("window.confirm=(m)=>{window.__preguntas.push(m); return true;}");
+  await clic("#btn-inicio");
+  await dormir(200);
+  assert.ok((await texto()).includes("¿En qué punto de escucha está ahora?"), "confirmando vuelve a elegir el punto");
+  assert.equal(await js("document.getElementById('btn-inicio').hidden"), true, "no se muestra en esa pantalla");
+  assert.equal(await js("localStorage.getItem('borrador')"), null, "se descarta el punto a medias");
+  await captura("14-ir-al-inicio");
+  await elegirPunto(3);
+  await boton("Comenzar"); await boton("Pasar directo");
+  await recorrer(5, "Enviar respuestas");
   await dormir(1000);
   assert.equal(recibidos.length, 2);
   assert.equal(recibidos[1].consentimiento, false);
   assert.equal(recibidos[1].parteA, null);
   assert.equal(recibidos[1].codigo, e.codigo);
   assert.notEqual(recibidos[1].envio_id, e.envio_id);
+
+  // 7. con todo contestado, ninguna respuesta puede faltar en lo que llega a la planilla
+  const Q = (() => { const w = {}; new Function("window", fs.readFileSync(path.join(RAIZ, "cuestionario.js"), "utf8"))(w); return w.Cuestionario; })();
+  const claves = (pasos) => pasos.flatMap((p) => p.preguntas.flatMap((q) => (q.filas ? q.filas.map((f) => q.id + "_" + f.id) : [q.id])));
+  const faltanA = claves(Q.parteA).filter((k) => e.parteA[k] == null || e.parteA[k] === "");
+  assert.deepEqual(faltanA, [], "Parte A: faltan respuestas " + faltanA);
+  for (const r of recibidos) {
+    const faltanB = claves(Q.parteB).filter((k) => r.parteB[k] == null || r.parteB[k] === "");
+    assert.deepEqual(faltanB, [], "Parte B del punto " + r.punto + ": faltan respuestas " + faltanB);
+    assert.equal(r.parteB.orden_B2.split("-").length, 8);
+    assert.ok(r.parteB.duracion_s !== "" && r.parteB.inicio && r.parteB.fin);
+  }
+  console.log("Preguntas verificadas por punto:", claves(Q.parteB).length, "de la Parte B y", claves(Q.parteA).length, "de la Parte A");
 
   assert.deepEqual(errores, [], "errores de JavaScript en la página");
   console.log("OK. Capturas en", CAPTURAS);

@@ -37,7 +37,11 @@
     for (const c of hijos.flat(Infinity)) if (c != null && c !== false) e.append(c.nodeType ? c : document.createTextNode(c));
     return e;
   }
+  let alSalir = null;          // limpieza de la pantalla que se deja (por ejemplo el cronómetro)
+  let pantalla = "";           // consentimiento, parteA, hub, escucha, parteB o gracias
   function mostrar(...nodos) {
+    if (alSalir) { alSalir(); alSalir = null; }
+    actualizarBotonInicio();
     app.replaceChildren(...nodos.flat(Infinity).filter(Boolean));
     window.scrollTo(0, 0);
     app.focus({ preventScroll: true });
@@ -57,6 +61,22 @@
     input.addEventListener("change", () => alElegir(op.v));
     return h("label", { class: "opcion" }, input, h("span", null, op.t));
   }
+
+  // ---- botón "Ir al inicio" ------------------------------------------------------------
+  const btnInicio = document.getElementById("btn-inicio");
+  function actualizarBotonInicio() {
+    btnInicio.hidden = !(persona.consintio && ["parteA", "escucha", "parteB"].includes(pantalla));
+  }
+  btnInicio.addEventListener("click", () => {
+    const enB = pantalla === "escucha" || pantalla === "parteB";
+    const msg = enB
+      ? "¿Quiere ir al inicio? Se perderán las respuestas de este punto que todavía no envió."
+      : "¿Quiere ir al inicio de esta parte? Sus respuestas quedan guardadas.";
+    if (!confirm(msg)) return;
+    if (enB) borrador = null; else persona.paso_A = 0;
+    guardar();
+    siguientePantalla();
+  });
 
   // ---- aviso de envíos ----------------------------------------------------------------
   function actualizarAviso() {
@@ -153,7 +173,12 @@
     const { titulo, i, n, preguntas, vals, ordenAtributos, atras, siguiente, textoSiguiente } = cfg;
     let advertido = false;
     const msg = h("div", { "aria-live": "polite" });
-    const cuerpo = preguntas.map((q) => render(q, vals, cfg.cambio, ordenAtributos));
+    // Si ya se avisó y la persona termina de responder, el aviso desaparece solo.
+    const cambio = () => {
+      cfg.cambio();
+      if (advertido && !sinResponder(preguntas, vals)) { msg.replaceChildren(); advertido = false; }
+    };
+    const cuerpo = preguntas.map((q) => render(q, vals, cambio, ordenAtributos));
     const btnSig = h("button", { class: "principal", onclick: () => {
       const faltan = sinResponder(preguntas, vals);
       if (faltan && !advertido) {
@@ -172,6 +197,7 @@
 
   // ---- flujo --------------------------------------------------------------------------
   function pantallaConsentimiento() {
+    pantalla = "consentimiento";
     const chk = h("input", { type: "checkbox", id: "acepto" });
     const btn = h("button", { class: "principal", disabled: true, onclick: () => {
       persona.codigo = L.nuevoCodigo(rng);   // interno: une las respuestas de la misma persona, nadie lo ve
@@ -190,6 +216,7 @@
   }
 
   function pasoA(i) {
+    pantalla = "parteA";
     persona.paso_A = i; guardar();
     const pasos = Q.parteA;
     pantallaPaso({
@@ -202,6 +229,7 @@
   }
 
   function pantallaInicioPunto() {
+    pantalla = "hub";
     const hechos = persona.puntos_hechos;
     const sel = h("select", { id: "punto" },
       h("option", { value: "" }, "Elegir…"),
@@ -228,6 +256,7 @@
   }
 
   function pantallaEscucha() {
+    pantalla = "escucha";
     let intervalo = null, wake = null;
     const reloj = h("div", { class: "reloj", role: "timer", "aria-live": "off" }, formato(C.SEGUNDOS_ESCUCHA * 1000));
     const btn = h("button", { class: "principal" }, "Comenzar los tres minutos");
@@ -268,6 +297,7 @@
         h("p", null, "Escuche el ambiente sonoro durante tres minutos, en silencio y sin caminar, usando todos los sentidos. Después responda las preguntas, sin apurarse."),
         reloj),
       h("div", { class: "acciones" }, btn), h("p", null, saltar));
+    alSalir = () => { clearInterval(intervalo); if (wake) wake.release().catch(() => {}); };
     if (borrador.escucha_hasta) { empezar_continuar(); }
     function empezar_continuar() {   // se recargó la página con la cuenta en marcha
       btn.disabled = true; btn.textContent = "Escuchando…";
@@ -276,6 +306,7 @@
   }
 
   function pasoB(i) {
+    pantalla = "parteB";
     borrador.paso = i; guardar();
     const pasos = Q.parteB;
     const punto = C.PUNTOS.find((p) => p.id === borrador.punto);
@@ -310,6 +341,7 @@
   }
 
   function pantallaGracias(punto) {
+    pantalla = "gracias";
     const faltan = C.PUNTOS.filter((p) => !persona.puntos_hechos.includes(p.id));
     mostrar(
       h("h1", null, "Respuestas registradas"),
