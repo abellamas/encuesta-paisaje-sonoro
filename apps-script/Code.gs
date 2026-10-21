@@ -5,7 +5,7 @@
 //   consentimientos   una fila por aceptación, SIN el código, para que no se puedan unir
 //
 // Si cambia el TOKEN hay que cambiarlo igual en config.js.
-const TOKEN = "cambiar-esta-clave";
+const TOKEN = "1e93ae6057cfcaab024e1237";
 
 const HOJA_RESPUESTAS = "respuestas";
 const HOJA_PARTICIPANTES = "participantes";

@@ -38,8 +38,9 @@ function cargar() {
   return { hojas, post };
 }
 
+const TOKEN = /const TOKEN = "([^"]+)"/.exec(fs.readFileSync(path.join(__dirname, "../apps-script/Code.gs"), "utf8"))[1];
 const base = (extra) => Object.assign({
-  token: "cambiar-esta-clave", envio_id: "E1", version: "v1", codigo: "ABC234", punto: 1,
+  token: TOKEN, envio_id: "E1", version: "v1", codigo: "ABC234", punto: 1,
   consentimiento: true, parteA: { A2_edad: 31 }, parteB: { orden_B2: "a-b", B2_pleasant: 4 }
 }, extra);
 

@@ -22,11 +22,11 @@ planilla y conectarla.
 
 1. **Crear la planilla.** En Google Drive, nueva hoja de cálculo de Google, con el nombre que quieras.
 2. **Pegar el script.** En la planilla, *Extensiones > Apps Script*. Borrar lo que haya y pegar el contenido de
-   `apps-script/Code.gs`. Cambiar el valor de `TOKEN` por una clave cualquiera. Guardar.
+   `apps-script/Code.gs` tal cual (ya trae la clave `TOKEN`, que es la misma de `config.js`). Guardar.
 3. **Publicarlo.** *Implementar > Nueva implementación > Aplicación web*. En *Ejecutar como* poner **Yo**, y en
    *Quién tiene acceso* poner **Cualquier persona**. Autorizar los permisos que pida. Copiar la **URL** que
    termina en `/exec`.
-4. **Conectar la página.** En `config.js` pegar esa URL en `ENDPOINT` y la misma clave en `TOKEN`. Subir el
+4. **Conectar la página.** En `config.js` pegar esa URL en `ENDPOINT`. Subir el
    cambio a GitHub (`git commit` y `git push`). En un minuto la página publicada lo toma.
 5. **Probar.** Abrir la página en el celular, responder una vez y mirar que aparezcan filas en las hojas
    `respuestas`, `participantes` y `consentimientos`. Después borrar esas filas de prueba.

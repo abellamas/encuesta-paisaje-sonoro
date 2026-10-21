@@ -5,7 +5,7 @@ window.CONFIG = {
   ENDPOINT: "",
   // Debe coincidir con TOKEN en apps-script/Code.gs. No es secreto (la página es pública),
   // sólo evita envíos que no vengan de esta página.
-  TOKEN: "cambiar-esta-clave",
+  TOKEN: "1e93ae6057cfcaab024e1237",
   VERSION: "2026-10-v1",
   SEGUNDOS_ESCUCHA: 180,
   // Opciones del desplegable de la Parte B. Se puede cambiar el nombre, por ejemplo
