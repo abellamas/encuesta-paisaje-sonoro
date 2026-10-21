@@ -37,7 +37,7 @@ Si cambia el script, hay que volver a *Implementar > Administrar implementacione
 ## Si se cambia algún archivo
 
 GitHub Pages deja que el celular guarde los archivos hasta diez minutos. Para que todos bajen la versión nueva,
-cambiar el número que sigue a `?v=` en las líneas de `index.html` (por ejemplo de `20261021e` a `20261022a`)
+cambiar el número que sigue a `?v=` en las líneas de `index.html` (por ejemplo de `20261021f` a `20261022a`)
 antes de subir el cambio.
 
 ## Antes de salir al campo
@@ -45,7 +45,7 @@ antes de subir el cambio.
 - Probarla en el parque con dos o tres teléfonos distintos (Android e iPhone) y con poca señal.
 - Cambiar los nombres de los puntos en `config.js` (`PUNTOS`) si querés que digan algo más que "Punto 1".
 - En `config.js`, `SEGUNDOS_ESCUCHA` es la duración de la escucha (180 = tres minutos).
-- Cada celular guarda una copia de sus respuestas. En la pantalla del punto hay un enlace para descargarla.
+- Cada celular guarda solo una copia de lo enviado en el almacenamiento del navegador (`historial`), sin que la persona tenga que hacer nada. No se muestra en pantalla.
 
 ## Qué columnas quedan en la planilla
 

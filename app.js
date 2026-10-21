@@ -286,8 +286,7 @@
           if (hechos.includes(id) && !(await preguntar({ mensaje: "Ya respondió este punto. ¿Quiere responderlo de nuevo?", si: "Sí, de nuevo", no: "No" }))) return;
           borrador = { fase: "escucha", punto: id, paso: 0, resp: {}, orden: L.barajar(Q.ATRIBUTOS.map((a) => a.id), rng), inicio: null, escucha_hasta: null };
           guardar(); pantallaEscucha();
-        } }, "Comenzar")),
-      h("p", null, h("button", { class: "enlace", onclick: copiaSeguridad }, "Guardar una copia de mis respuestas en este celular")));
+        } }, "Comenzar")));
   }
 
   function pantallaEscucha() {
@@ -388,11 +387,6 @@
     actualizarAviso();
   }
 
-  function copiaSeguridad() {
-    const datos = JSON.stringify({ codigo: persona.codigo, envios: alm.get("historial") || [] }, null, 2);
-    const a = h("a", { href: URL.createObjectURL(new Blob([datos], { type: "application/json" })), download: "respuestas-" + (persona.codigo || "sin-codigo") + ".json" });
-    document.body.append(a); a.click(); a.remove();
-  }
   function siguientePantalla() {
     if (!persona.consintio) return pantallaConsentimiento();
     if (!persona.parteA_ok) return pasoA(persona.paso_A || 0);
