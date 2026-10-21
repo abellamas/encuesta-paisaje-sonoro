@@ -37,7 +37,7 @@ Si cambia el script, hay que volver a *Implementar > Administrar implementacione
 ## Si se cambia algún archivo
 
 GitHub Pages deja que el celular guarde los archivos hasta diez minutos. Para que todos bajen la versión nueva,
-cambiar el número que sigue a `?v=` en las líneas de `index.html` (por ejemplo de `20261021g` a `20261022a`)
+cambiar el número que sigue a `?v=` en las líneas de `index.html` (por ejemplo de `20261021h` a `20261022a`)
 antes de subir el cambio.
 
 ## Antes de salir al campo

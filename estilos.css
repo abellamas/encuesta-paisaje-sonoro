@@ -141,3 +141,5 @@ body[data-parte="B"] {
   --celeste: #1f9d5e;
 }
 body[data-parte="B"] .barra > span { background: #2fb36b; }
+
+.pie a { color: var(--azul); }
