@@ -106,7 +106,6 @@ button.enlace { border: 0; background: none; text-decoration: underline; padding
 .mensaje.ok { background: #e6f4ea; border: 1px solid #a8d5b5; color: var(--ok); }
 .mensaje.error { background: #fdecea; border: 1px solid #f0b4b0; color: var(--error); }
 
-.codigo { font: 700 28px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .12em; color: var(--azul); }
 .reloj { font: 700 56px/1.1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; text-align: center; color: var(--azul); margin: 16px 0; }
 .puntos { list-style: none; padding: 0; margin: 0 0 12px; display: grid; gap: 6px; }
 .puntos li { display: flex; justify-content: space-between; padding: 8px 12px; background: #f7f7f8; border-radius: 6px; }
