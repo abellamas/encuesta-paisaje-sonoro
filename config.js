@@ -2,7 +2,7 @@
 window.CONFIG = {
   // URL de la aplicación web de Apps Script (ver README, paso 3).
   // Mientras esté vacía la página funciona en modo prueba, sin enviar nada.
-  ENDPOINT: "",
+  ENDPOINT: "https://script.google.com/macros/s/AKfycby__MrJSWXE_TXDbBmV1jQhckpe2d54U-1rfoVbcEsFJ2IZwUJQNJJC8QGUo8QPwRc4/exec",
   // Debe coincidir con TOKEN en apps-script/Code.gs. No es secreto (la página es pública),
   // sólo evita envíos que no vengan de esta página.
   TOKEN: "1e93ae6057cfcaab024e1237",
