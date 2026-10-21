@@ -11,7 +11,7 @@ código QR, se responde en línea y cada respuesta cae como una fila en una plan
   abrir la página retoma donde quedó, con el mismo orden de atributos.
 - Si se corta la señal, las respuestas quedan en el celular y se envían solas cuando vuelve. Un reintento no
   duplica filas.
-- El consentimiento se guarda en una hoja aparte, sin el código del participante.
+- El consentimiento se guarda en una hoja aparte, con el código anónimo del participante y sin ningún dato que lo identifique.
 
 La página publicada está en <https://abellamas.github.io/encuesta-paisaje-sonoro/>.
 
@@ -53,7 +53,7 @@ antes de subir el cambio.
 |---|---|---|
 | `respuestas` | punto y participante | `codigo`, `punto`, `orden_B2`, `duracion_s`, B1 a B8 |
 | `participantes` | participante | `codigo`, A1 a A8 y el WHO-5 (`A9_WHO5_a` a `e`) |
-| `consentimientos` | aceptación | fecha y versión, sin código |
+| `consentimientos` | aceptación | `codigo`, fecha y versión del texto |
 
 Las columnas salen siempre en el orden de las preguntas (A1 a A9 y B1 a B8), con los ocho atributos de B2 en el
 orden de su ángulo teórico, de 0° a 315° (`B2_agradable`, `B2_estimulante`, `B2_con_actividad`, `B2_caotico`,

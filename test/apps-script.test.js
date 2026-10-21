@@ -44,11 +44,12 @@ const base = (extra) => Object.assign({
   consentimiento: true, parteA: { A2_edad: 31 }, parteB: { orden_B2: "a-b", B2_pleasant: 4 }
 }, extra);
 
-test("escribe consentimiento, participante y respuestas por separado", () => {
+test("escribe consentimiento, participante y respuestas en hojas separadas", () => {
   const { hojas, post } = cargar();
   assert.deepEqual(post(base()), { ok: true });
   const cons = hojas.consentimientos.filas;
-  assert.ok(!cons[0].includes("codigo") && !cons[0].includes("envio_id"), "el consentimiento no debe llevar código");
+  assert.ok(cons[0].includes("codigo") && cons[1][cons[0].indexOf("codigo")] === "ABC234", "el consentimiento lleva el código anónimo");
+  assert.ok(!cons[0].includes("envio_id") && !cons[0].includes("A2_edad"), "pero ningún dato de las respuestas");
   assert.equal(hojas.participantes.filas[1][hojas.participantes.filas[0].indexOf("A2_edad")], 31);
   const r = hojas.respuestas.filas;
   assert.equal(r[1][r[0].indexOf("orden_B2")], "a-b");

@@ -2,7 +2,8 @@
 // Hojas que crea solas, con las columnas que van apareciendo:
 //   respuestas        una fila por punto y participante (Parte B)
 //   participantes     una fila por participante (Parte A)
-//   consentimientos   una fila por aceptación, SIN el código, para que no se puedan unir
+//   consentimientos   una fila por aceptación, con el código anónimo para poder comprobar que cada
+//                     participante aceptó (no tiene ningún dato que identifique a la persona)
 //
 // Si cambia el TOKEN hay que cambiarlo igual en config.js.
 const TOKEN = "1e93ae6057cfcaab024e1237";
@@ -31,7 +32,7 @@ function doPost(e) {
 
     const ahora = new Date();
     if (d.consentimiento) {
-      agregarFila(hoja(ss, HOJA_CONSENTIMIENTOS), { recibido: ahora, version: d.version, punto: d.punto });
+      agregarFila(hoja(ss, HOJA_CONSENTIMIENTOS), { recibido: ahora, codigo: d.codigo, version: d.version, punto: d.punto });
     }
     if (d.parteA && !existe(hoja(ss, HOJA_PARTICIPANTES), "codigo", d.codigo)) {
       agregarFila(hoja(ss, HOJA_PARTICIPANTES), Object.assign({ recibido: ahora, codigo: d.codigo, version: d.version }, d.parteA));
