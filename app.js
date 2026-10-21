@@ -183,7 +183,7 @@
     mostrar(
       h("h1", null, "Paisaje sonoro en parques urbanos"),
       h("div", { class: "tarjeta" },
-        h("p", null, "Esta encuesta forma parte de una investigación sobre cómo las personas perciben los sonidos en los parques. Es ", h("strong", null, "anónima y voluntaria"), ", puede dejar de responder cuando quiera y ", h("strong", null, "todas las preguntas son opcionales"), ". Las respuestas se usarán sólo con fines de investigación y se guardarán sin su nombre."),
+        h("p", null, "Esta encuesta forma parte de una investigación de la Universidad Nacional de Tres de Febrero, de la carrera de Ingeniería de Sonido, sobre cómo las personas perciben los sonidos en los parques. Es ", h("strong", null, "anónima y voluntaria"), ", puede dejar de responder cuando quiera y ", h("strong", null, "todas las preguntas son opcionales"), ". Las respuestas se usarán sólo con fines de investigación y se guardarán sin su nombre."),
         h("label", { class: "consent", for: "acepto" }, chk, h("span", null, "Acepto participar.")),
         h("p", { class: "suave" }, "Duración aproximada, entre 15 y 20 minutos en total, repartidos en tres puntos del parque.")),
       h("div", { class: "acciones" }, btn));
