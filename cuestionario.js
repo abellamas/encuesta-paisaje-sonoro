@@ -6,12 +6,17 @@ window.Cuestionario = (function () {
     { v: 3, t: "Ni de acuerdo ni en desacuerdo" },
     { v: 2, t: "En desacuerdo" }, { v: 1, t: "Muy en desacuerdo" }
   ];
-  // Los ocho atributos de la norma ISO/TS 12913-2 en la versión del SATP (primera palabra).
+  // Los ocho atributos de la norma ISO/TS 12913-2 en la versión del SATP (primera palabra), en el orden
+  // de su ángulo teórico, de 0° a 315°. Ese es también el orden de las columnas en la planilla.
   const ATRIBUTOS = [
-    { id: "pleasant", t: "agradable" }, { id: "chaotic", t: "caótico" },
-    { id: "vibrant", t: "estimulante" }, { id: "uneventful", t: "sin actividad" },
-    { id: "calm", t: "calmado" }, { id: "annoying", t: "desagradable" },
-    { id: "eventful", t: "con actividad" }, { id: "monotonous", t: "monótono" }
+    { id: "agradable", t: "agradable" },          //   0°
+    { id: "estimulante", t: "estimulante" },      //  45°
+    { id: "con_actividad", t: "con actividad" },  //  90°
+    { id: "caotico", t: "caótico" },              // 135°
+    { id: "desagradable", t: "desagradable" },    // 180°
+    { id: "monotono", t: "monótono" },            // 225°
+    { id: "sin_actividad", t: "sin actividad" },  // 270°
+    { id: "calmado", t: "calmado" }               // 315°
   ];
   const SI_NO = [{ v: "si", t: "Sí" }, { v: "no", t: "No" }];
   const SI_NO_NS = [{ v: "si", t: "Sí" }, { v: "no", t: "No" }, { v: "no_se", t: "No sé" }];
@@ -96,5 +101,9 @@ window.Cuestionario = (function () {
     ] }
   ];
 
-  return { ATRIBUTOS, parteA, parteB };
+  // Claves de las respuestas en el orden de las preguntas (A1, A2, ... B1, B2, ...). Sirve para que las
+  // columnas de la planilla salgan siempre en el mismo orden, sin importar cómo contestó cada persona.
+  const claves = (pasos) => pasos.flatMap((p) => p.preguntas.flatMap((q) => (q.filas ? q.filas.map((f) => q.id + "_" + f.id) : [q.id])));
+
+  return { ATRIBUTOS, parteA, parteB, claves };
 })();

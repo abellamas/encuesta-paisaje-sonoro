@@ -80,3 +80,17 @@ test("rechaza un token incorrecto y envíos incompletos", () => {
   assert.equal(post(base({ envio_id: "" })).ok, false);
   assert.equal(hojas.respuestas, undefined);
 });
+
+test("las columnas salen en el orden en que llegan las claves y las respuestas vacías no las mueven", () => {
+  const { hojas, post } = cargar();
+  const claves = ["B1_transito", "B2_agradable", "B2_estimulante", "B2_calmado", "B8_abierta"];
+  const cuerpo = (valores) => Object.fromEntries(claves.map((k, i) => [k, valores[i]]));
+  post(base({ parteB: Object.assign({ orden_B2: "calmado-agradable" }, cuerpo([2, 5, null, 1, null])) }));
+  post(base({ envio_id: "E2", punto: 2, consentimiento: false, parteA: null, parteB: Object.assign({ orden_B2: "agradable-calmado" }, cuerpo([null, 3, 4, null, "ok"])) }));
+  const enc = hojas.respuestas.filas[0];
+  const esperado = ["recibido", "envio_id", "codigo", "punto", "version", "orden_B2", ...claves];
+  assert.deepEqual(enc, esperado);
+  const fila2 = hojas.respuestas.filas[2];
+  assert.equal(fila2[enc.indexOf("B2_estimulante")], 4);
+  assert.equal(hojas.respuestas.filas[1][enc.indexOf("B2_estimulante")], "");   // el vacío queda vacío, en su columna
+});

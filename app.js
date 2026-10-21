@@ -354,12 +354,13 @@
   }
 
   function enviar() {
-    const parteB = {};
-    for (const [k, v] of Object.entries(borrador.resp)) parteB[k] = v;
+    // Todas las claves, siempre en el orden de las preguntas, con vacío donde no se contestó.
+    const completo = (claves, vals) => { const o = {}; for (const k of claves) o[k] = vals[k] == null ? null : vals[k]; return o; };
+    const parteB = completo(Q.claves(Q.parteB), borrador.resp);
     const envio = L.construirEnvio({
       envio_id: L.nuevoEnvioId(rng), version: C.VERSION, codigo: persona.codigo, punto: borrador.punto,
       consentimiento: !persona.consentimiento_enviado,
-      parteA: persona.parteA_enviada ? null : persona.parteA,
+      parteA: persona.parteA_enviada ? null : completo(Q.claves(Q.parteA), persona.parteA),
       inicio: borrador.inicio, fin: new Date().toISOString(), orden: borrador.orden, parteB
     });
     persona.consentimiento_enviado = true;

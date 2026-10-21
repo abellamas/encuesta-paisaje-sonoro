@@ -37,7 +37,7 @@ Si cambia el script, hay que volver a *Implementar > Administrar implementacione
 ## Si se cambia algún archivo
 
 GitHub Pages deja que el celular guarde los archivos hasta diez minutos. Para que todos bajen la versión nueva,
-cambiar el número que sigue a `?v=` en las líneas de `index.html` (por ejemplo de `20261021f` a `20261022a`)
+cambiar el número que sigue a `?v=` en las líneas de `index.html` (por ejemplo de `20261021g` a `20261022a`)
 antes de subir el cambio.
 
 ## Antes de salir al campo
@@ -54,6 +54,12 @@ antes de subir el cambio.
 | `respuestas` | punto y participante | `codigo`, `punto`, `orden_B2`, `duracion_s`, B1 a B8 |
 | `participantes` | participante | `codigo`, A1 a A8 y el WHO-5 (`A9_WHO5_a` a `e`) |
 | `consentimientos` | aceptación | fecha y versión, sin código |
+
+Las columnas salen siempre en el orden de las preguntas (A1 a A9 y B1 a B8), con los ocho atributos de B2 en el
+orden de su ángulo teórico, de 0° a 315° (`B2_agradable`, `B2_estimulante`, `B2_con_actividad`, `B2_caotico`,
+`B2_desagradable`, `B2_monotono`, `B2_sin_actividad`, `B2_calmado`). En `orden_B2` queda, con los mismos nombres,
+el orden en que cada persona vio los atributos. Si se cambian las preguntas, conviene borrar las pestañas de la
+planilla antes de empezar, para que se creen de nuevo con las columnas en orden.
 
 Codificación de las escalas: acuerdo de 1 (muy en desacuerdo) a 5 (muy de acuerdo), WHO-5 de 0 (nunca) a 5
 (todo el tiempo), restauratividad (`B7_a` a `f`) de 0 a 6.

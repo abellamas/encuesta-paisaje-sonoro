@@ -203,7 +203,7 @@ async function main() {
   assert.equal(e.parteA.A2_edad, 35);
   assert.equal(e.parteA.A1_vive_cerca, "si");
   assert.equal(e.parteB.orden_B2, orden1);
-  assert.equal(e.parteB.B2_pleasant, 5);
+  assert.equal(e.parteB.B2_agradable, 5);
   assert.equal(e.parteB.B1_naturales, 4);
   assert.equal(e.parteB.B3_global, 4);
   assert.equal(e.parteB.B7_a, 5);
@@ -234,6 +234,13 @@ async function main() {
     assert.equal(r.parteB.orden_B2.split("-").length, 8);
     assert.ok(r.parteB.duracion_s !== "" && r.parteB.inicio && r.parteB.fin);
   }
+  // las columnas llegan siempre completas y en orden ascendente, no en el orden en que se contestó
+  assert.deepEqual(Object.keys(e.parteA), claves(Q.parteA), "Parte A fuera de orden");
+  for (const r of recibidos) {
+    assert.deepEqual(Object.keys(r.parteB), ["inicio", "fin", "duracion_s", "orden_B2", ...claves(Q.parteB)], "Parte B fuera de orden");
+    assert.ok(r.parteB.orden_B2.split("-").every((x) => Q.ATRIBUTOS.some((a) => a.id === x)), "orden_B2 debe usar los nombres en español");
+  }
+  assert.deepEqual(Q.ATRIBUTOS.map((a) => a.id).map((id) => "B2_" + id), claves(Q.parteB).filter((k) => k.startsWith("B2_")));
   console.log("Preguntas verificadas por punto:", claves(Q.parteB).length, "de la Parte B y", claves(Q.parteA).length, "de la Parte A");
 
   // 8. Reiniciar: advierte, deja cancelar, y borra lo no enviado (pero no lo ya enviado)
