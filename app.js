@@ -47,7 +47,7 @@
     app.focus({ preventScroll: true });
   }
   // Pregunta de sí o no dentro de la página. Reemplaza a confirm(), que varios navegadores internos bloquean.
-  function preguntar(mensaje, si, no) {
+  function preguntar(opc) {
     return new Promise((resolve) => {
       const previo = document.activeElement;
       const cerrar = (v) => {
@@ -57,11 +57,12 @@
         resolve(v);
       };
       const tecla = (e) => { if (e.key === "Escape") cerrar(false); };
-      const bNo = h("button", { type: "button", id: "dlg-no", onclick: () => cerrar(false) }, no || "No");
-      const bSi = h("button", { type: "button", id: "dlg-si", class: "principal", onclick: () => cerrar(true) }, si || "Sí");
+      const bNo = h("button", { type: "button", id: "dlg-no", onclick: () => cerrar(false) }, opc.no || "No");
+      const bSi = h("button", { type: "button", id: "dlg-si", class: opc.peligro ? "peligro" : "principal", onclick: () => cerrar(true) }, opc.si || "Sí");
       const fondo = h("div", { class: "modal-fondo" },
-        h("div", { class: "modal", role: "alertdialog", "aria-modal": "true", "aria-labelledby": "dlg-msg" },
-          h("p", { id: "dlg-msg" }, mensaje), h("div", { class: "acciones" }, bNo, bSi)));
+        h("div", { class: "modal", role: "alertdialog", "aria-modal": "true", "aria-labelledby": "dlg-tit", "aria-describedby": "dlg-msg" },
+          opc.titulo && h("h2", { id: "dlg-tit" }, opc.titulo),
+          h("p", { id: "dlg-msg" }, opc.mensaje), h("div", { class: "acciones" }, bNo, bSi)));
       document.body.append(fondo);
       document.addEventListener("keydown", tecla);
       bNo.focus();
@@ -86,18 +87,22 @@
   // ---- botón "Ir al inicio" ------------------------------------------------------------
   const btnInicio = document.getElementById("btn-inicio");
   function actualizarBotonInicio() {
+    document.body.dataset.pantalla = pantalla;
+    document.body.dataset.parte = pantalla === "parteA" ? "A" : (pantalla === "escucha" || pantalla === "parteB") ? "B" : "";
     btnInicio.hidden = !(persona.consintio && pantalla !== "consentimiento");
   }
-  btnInicio.addEventListener("click", async () => {
-    const enB = pantalla === "escucha" || pantalla === "parteB";
-    let msg = "¿Quiere ir a la primera pantalla?";
-    if (enB) msg += " Se perderán las respuestas de este punto que todavía no envió.";
-    else if (pantalla === "parteA") msg += " Las respuestas de la Parte A quedan guardadas.";
-    if (!(await preguntar(msg, "Sí, ir al inicio", "No, seguir acá"))) return;
-    if (enB) borrador = null;
-    guardar();
-    pantallaConsentimiento();
-  });
+  btnInicio.addEventListener("click", () => reiniciar());
+
+  async function reiniciar() {
+    const ok = await preguntar({
+      titulo: "¿Reiniciar la encuesta?",
+      mensaje: "Se reiniciará la encuesta y volverá a la primera pantalla. Se borrarán las respuestas de este participante que todavía no envió. Lo que ya envió no se pierde.",
+      si: "Sí, reiniciar", no: "No, seguir acá", peligro: true
+    });
+    if (!ok) return;
+    persona = { codigo: null, consintio: false, consentimiento_enviado: false, parteA: {}, parteA_ok: false, parteA_enviada: false, paso_A: 0, puntos_hechos: [] };
+    borrador = null; guardar(); pantallaConsentimiento();
+  }
 
   // ---- aviso de envíos ----------------------------------------------------------------
   function actualizarAviso() {
@@ -221,15 +226,6 @@
     pantalla = "consentimiento";
     const intro = h("p", null, "Esta encuesta forma parte de una investigación de la Universidad Nacional de Tres de Febrero, de la carrera de Ingeniería de Sonido, sobre cómo las personas perciben los sonidos en los parques. Es ", h("strong", null, "anónima y voluntaria"), ", puede dejar de responder cuando quiera y ", h("strong", null, "todas las preguntas son opcionales"), ". Las respuestas se usarán sólo con fines de investigación y se guardarán sin su nombre.");
     const duracion = h("p", { class: "suave" }, "Duración aproximada, entre 15 y 20 minutos en total, repartidos en tres puntos del parque.");
-    if (persona.consintio) {
-      // Ya aceptó: se puede seguir con la misma persona o empezar con otra.
-      mostrar(
-        h("h1", null, "Paisaje sonoro en parques urbanos"),
-        h("div", { class: "tarjeta" }, intro, h("p", { class: "mensaje ok" }, "Ya aceptó participar."), duracion),
-        h("div", { class: "acciones" }, h("button", { class: "principal", onclick: siguientePantalla }, "Continuar mi encuesta")),
-        h("p", null, h("button", { class: "enlace", onclick: otraPersona }, "Empezar con otro participante")));
-      return;
-    }
     const chk = h("input", { type: "checkbox", id: "acepto" });
     const btn = h("button", { class: "principal", disabled: true, onclick: () => {
       persona.codigo = L.nuevoCodigo(rng);   // interno: une las respuestas de la misma persona, nadie lo ve
@@ -278,12 +274,11 @@
         completos ? null : h("button", { class: "principal", onclick: async () => {
           const id = Number(sel.value);
           if (!id) { err.replaceChildren(h("p", { class: "mensaje error" }, "Elija el punto de escucha en el que está.")); return; }
-          if (hechos.includes(id) && !(await preguntar("Ya respondió este punto. ¿Quiere responderlo de nuevo?", "Sí, de nuevo", "No"))) return;
+          if (hechos.includes(id) && !(await preguntar({ mensaje: "Ya respondió este punto. ¿Quiere responderlo de nuevo?", si: "Sí, de nuevo", no: "No" }))) return;
           borrador = { fase: "escucha", punto: id, paso: 0, resp: {}, orden: L.barajar(Q.ATRIBUTOS.map((a) => a.id), rng), inicio: null, escucha_hasta: null };
           guardar(); pantallaEscucha();
         } }, "Comenzar")),
-      h("p", null, h("button", { class: "enlace", onclick: copiaSeguridad }, "Guardar una copia de mis respuestas en este celular")),
-      h("p", null, h("button", { class: "enlace", onclick: otraPersona }, "Es otra persona (nuevo participante)")));
+      h("p", null, h("button", { class: "enlace", onclick: copiaSeguridad }, "Guardar una copia de mis respuestas en este celular")));
   }
 
   function pantallaEscucha() {
@@ -389,12 +384,6 @@
     const a = h("a", { href: URL.createObjectURL(new Blob([datos], { type: "application/json" })), download: "respuestas-" + (persona.codigo || "sin-codigo") + ".json" });
     document.body.append(a); a.click(); a.remove();
   }
-  async function otraPersona() {
-    if (!(await preguntar("Se empezará con un participante nuevo. Las respuestas ya enviadas no se pierden. ¿Continuar?", "Sí, empezar", "No"))) return;
-    persona = { codigo: null, consintio: false, consentimiento_enviado: false, parteA: {}, parteA_ok: false, parteA_enviada: false, paso_A: 0, puntos_hechos: [] };
-    borrador = null; guardar(); pantallaConsentimiento();
-  }
-
   function siguientePantalla() {
     if (!persona.consintio) return pantallaConsentimiento();
     if (!persona.parteA_ok) return pasoA(persona.paso_A || 0);

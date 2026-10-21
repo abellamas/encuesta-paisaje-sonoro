@@ -122,6 +122,8 @@ async function main() {
   // 2. Parte A: primero el aviso de preguntas sin responder, después todo contestado
   await dormir(200);
   await captura("02-parteA-1");
+  assert.equal(await js("getComputedStyle(document.querySelector('h1')).color"), "rgb(36, 99, 154)", "la Parte A va en azul");
+  assert.equal(await js("document.body.dataset.parte"), "A");
   await elegir("¿Vive a diez minutos", "Sí");
   await js(`(()=>{const i=document.querySelector('input[type=number]'); i.value='35'; i.dispatchEvent(new Event('input',{bubbles:true}));})()`);
   await elegir("¿Cuál es su género", "Femenino");
@@ -138,6 +140,7 @@ async function main() {
   await boton("Comenzar");
   await dormir(200);
   await captura("06-escucha");
+  assert.equal(await js("document.body.dataset.parte"), "B", "la escucha ya es de la Parte B");
   await boton("Comenzar los tres minutos");
   await dormir(3700);
   assert.ok((await texto()).includes("Listo"));
@@ -146,6 +149,8 @@ async function main() {
   // 4. Parte B, con un cierre del navegador a mitad de camino
   await dormir(200);
   await captura("07-B1");
+  assert.equal(await js("getComputedStyle(document.querySelector('h1')).color"), "rgb(31, 122, 77)", "la Parte B va en verde");
+  assert.equal(await js("document.body.dataset.parte"), "B");
   await js(`(()=>{const f=[...document.querySelectorAll('fieldset.fila')].find(f=>f.innerText.startsWith('Sonidos naturales')); f.querySelectorAll('label.opcion')[3].querySelector('input').click();})()`);
   await completar(); await boton("Siguiente");
   const orden1 = await js("JSON.parse(localStorage.getItem('borrador')).orden.join('-')");
@@ -201,28 +206,6 @@ async function main() {
   assert.ok((await texto()).includes("Respondido"), "debe marcar el punto hecho");
   await elegirPunto(3);
   await boton("Comenzar"); await boton("Pasar directo");
-  // botón "Ir al inicio": pregunta antes, y si se confirma vuelve a elegir el punto
-  assert.equal(await js("document.getElementById('btn-inicio').hidden"), false, "debe verse durante la encuesta");
-  await clic("#btn-inicio");
-  await dormir(100);
-  assert.ok(await js("!!document.querySelector('.modal')"), "debe aparecer la pregunta");
-  assert.ok((await js("document.querySelector('.modal').innerText")).includes("Se perderán"), "debe avisar de lo que se pierde");
-  await clic("#dlg-no");
-  assert.ok((await texto()).includes("Paso 1 de 5"), "si no confirma, se queda donde estaba");
-  assert.equal(await js("!!document.querySelector('.modal')"), false);
-  await clic("#btn-inicio");
-  await clic("#dlg-si");
-  await dormir(200);
-  assert.ok((await texto()).includes("Universidad Nacional de Tres de Febrero"), "confirmando vuelve a la primera pantalla");
-  assert.ok((await texto()).includes("Ya aceptó participar"), "no vuelve a pedir el consentimiento a quien ya aceptó");
-  assert.equal(await js("document.getElementById('btn-inicio').hidden"), true, "no se muestra en la primera pantalla");
-  assert.equal(await js("localStorage.getItem('borrador')"), null, "se descarta el punto a medias");
-  await captura("14-ir-al-inicio");
-  await boton("Continuar mi encuesta");
-  await dormir(200);
-  assert.ok((await texto()).includes("¿En qué punto de escucha está ahora?"), "continuar lleva a elegir el punto");
-  await elegirPunto(3);
-  await boton("Comenzar"); await boton("Pasar directo");
   await recorrer(5, "Enviar respuestas");
   await dormir(1000);
   assert.equal(recibidos.length, 2);
@@ -243,6 +226,33 @@ async function main() {
     assert.ok(r.parteB.duracion_s !== "" && r.parteB.inicio && r.parteB.fin);
   }
   console.log("Preguntas verificadas por punto:", claves(Q.parteB).length, "de la Parte B y", claves(Q.parteA).length, "de la Parte A");
+
+  // 8. Reiniciar: advierte, deja cancelar, y borra lo no enviado (pero no lo ya enviado)
+  assert.equal(await js("document.getElementById('btn-inicio').hidden"), false, "debe verse una vez aceptado el consentimiento");
+  assert.equal(await js("document.getElementById('btn-inicio').innerText"), "Reiniciar");
+  const antes = await texto();
+  await clic("#btn-inicio"); await dormir(100);
+  const aviso = await js("document.querySelector('.modal').innerText");
+  assert.ok(aviso.includes("Se reiniciará la encuesta") && aviso.includes("Lo que ya envió no se pierde"), "debe advertir qué pasa");
+  assert.equal(await js("getComputedStyle(document.getElementById('dlg-si')).backgroundColor"), "rgb(164, 38, 44)", "el botón de confirmar es rojo");
+  await clic("#dlg-no");
+  assert.equal(await texto(), antes, "si cancela se queda donde estaba");
+  assert.equal(await js("!!document.querySelector('.modal')"), false);
+  await clic("#btn-inicio"); await clic("#dlg-si"); await dormir(200);
+  assert.ok((await texto()).includes("Acepto participar"), "vuelve a la primera pantalla");
+  assert.equal(await js("document.getElementById('btn-inicio').hidden"), true, "no se muestra en la primera pantalla");
+  assert.equal(await js("JSON.parse(localStorage.getItem('persona')).codigo"), null, "queda como participante nuevo");
+  assert.equal(await js("JSON.parse(localStorage.getItem('cola_envios')||'[]').length"), 0);
+  assert.ok((await js("document.querySelector('.cabecera img').getBoundingClientRect().height")) > 80, "el logo es grande en la primera pantalla");
+  await captura("14-reiniciar");
+  // y a mitad de la Parte A
+  await clic("#acepto"); await clic("button.principal"); await dormir(200);
+  assert.ok((await js("document.querySelector('.cabecera img').getBoundingClientRect().height")) < 60, "el logo vuelve a su tamaño normal");
+  await elegir("¿Vive a diez minutos", "Sí");
+  await clic("#btn-inicio"); await clic("#dlg-si"); await dormir(200);
+  assert.ok((await texto()).includes("Acepto participar"));
+  assert.deepEqual(await js("JSON.parse(localStorage.getItem('persona')).parteA"), {}, "se borra la Parte A no enviada");
+  assert.equal(recibidos.length, 2, "reiniciar no envía nada");
 
   assert.deepEqual(errores, [], "errores de JavaScript en la página");
   console.log("OK. Capturas en", CAPTURAS);
