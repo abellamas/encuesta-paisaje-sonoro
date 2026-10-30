@@ -11,8 +11,9 @@ window.CONFIG = {
   // Opciones del desplegable de la Parte B. Se puede cambiar el nombre, por ejemplo
   // "Punto 1, entrada principal". El id es lo que queda en la planilla.
   PUNTOS: [
-    { id: 1, nombre: "Calistenia" },
-    { id: 2, nombre: "Entrada Corrientes y Newbery" },
-    { id: 3, nombre: "Cerca juegos de niños" }
+    // foto y audio sólo se usan en el modo piloto (agregar ?piloto=1 a la dirección)
+    { id: 1, nombre: "Calistenia", foto: "piloto/fotos/calistenia.jpg", audio: "piloto/audio/calistenia.mp3" },
+    { id: 2, nombre: "Entrada Corrientes y Newbery", foto: "piloto/fotos/newbery.jpg", audio: "piloto/audio/newbery.mp3" },
+    { id: 3, nombre: "Mesitas", foto: "piloto/fotos/mesitas.jpg", audio: "piloto/audio/mesitas.mp3" }
   ]
 };

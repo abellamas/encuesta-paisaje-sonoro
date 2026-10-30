@@ -8,6 +8,11 @@
   const cola = L.crearCola(alm, "cola_envios");
   const app = document.getElementById("app");
   const aviso = document.getElementById("aviso");
+  // Modo piloto (?piloto=1). Muestra la foto y pasa la grabación de cada punto una sola vez. Las respuestas
+  // se guardan con la versión "piloto" y un código que empieza con PILOTO, para no mezclarlas con las reales.
+  const piloto = /[?&]piloto(=|&|$)/.test(location.search);
+  const VERSION = piloto ? "piloto" : C.VERSION;
+  if (piloto) document.body.insertBefore(h("div", { class: "banda-piloto" }, "Modo piloto. Tus respuestas se guardan como prueba."), aviso);
 
   // ---- estado guardado ----------------------------------------------------------------
   // persona: lo que se completa una sola vez (código, consentimiento, Parte A, puntos hechos).
@@ -362,7 +367,7 @@
     const duracion = h("p", { class: "suave" }, "Duración aproximada, 15 minutos.");
     const chk = h("input", { type: "checkbox", id: "acepto" });
     const btn = h("button", { class: "principal", disabled: true, onclick: () => {
-      persona.codigo = L.nuevoCodigo(rng);   // interno: une las respuestas de la misma persona, nadie lo ve
+      persona.codigo = (piloto ? "PILOTO-" : "") + L.nuevoCodigo(rng);   // interno: une las respuestas de la misma persona, nadie lo ve
       persona.consintio = true;
       persona.t = nuevoT(); persona.t.sesion_inicio = Date.now();
       guardar();
@@ -407,7 +412,7 @@
     ta.addEventListener("input", () => { persona.comentario_borrador = ta.value; guardar(); });
     const enviarComentario = () => {
       const texto = ta.value.trim();
-      if (texto) cola.agregar({ envio_id: L.nuevoEnvioId(rng), tipo: "comentario", version: C.VERSION, codigo: persona.codigo, comentario: texto });
+      if (texto) cola.agregar({ envio_id: L.nuevoEnvioId(rng), tipo: "comentario", version: VERSION, codigo: persona.codigo, comentario: texto });
       persona.comentario_enviado = true; persona.comentario_borrador = ""; guardar();
       reintentar(); pantallaInicioPunto();
     };
@@ -438,6 +443,14 @@
     let intervalo = null, wake = null, pase = null;
     const reloj = h("div", { class: "reloj", role: "timer", "aria-live": "off" }, formato(C.SEGUNDOS_ESCUCHA * 1000));
     const btn = h("button", { class: "principal" }, "Comenzar el minuto de escucha");
+    const lugar = C.PUNTOS.find((p) => p.id === borrador.punto);
+    const au = piloto && lugar.audio ? new Audio(lugar.audio) : null;   // sin controles, para que no se pueda repetir
+    if (au) au.preload = "auto";
+    const sonar = () => {
+      if (!au || borrador.audio_hecho) return;   // se oye una sola vez, aunque se recargue la página
+      borrador.audio_hecho = true; guardar();
+      au.play().catch(() => {});
+    };
     function formato(ms) {
       const s = Math.max(0, Math.ceil(ms / 1000));
       return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
@@ -450,6 +463,7 @@
         if (navigator.vibrate) navigator.vibrate([250, 120, 250]);
         reloj.setAttribute("aria-live", "assertive");
         reloj.textContent = "Listo";
+        if (au) au.pause();
         btn.textContent = "Pasando a las preguntas…";
         pase = setTimeout(seguir, 2000);   // pasa solo a la encuesta
       }
@@ -463,6 +477,7 @@
     function empezar() {
       borrador.escucha_hasta = Date.now() + C.SEGUNDOS_ESCUCHA * 1000; guardar();
       btn.disabled = true; btn.textContent = "Escuchando…";
+      sonar();
       if (navigator.wakeLock) navigator.wakeLock.request("screen").then((w) => { wake = w; }).catch(() => {});
       intervalo = setInterval(tic, 250); tic();
     }
@@ -470,13 +485,19 @@
     mostrar(
       h("h1", null, C.PUNTOS.find((p) => p.id === borrador.punto).nombre),
       h("div", { class: "tarjeta" },
-        h("ul", { class: "lista" },
-          h("li", null, "Escuchá el ambiente sonoro durante un minuto, en silencio, sin hablar con los demás y sin caminar."),
-          h("li", null, "Orientá la cabeza igual que el guía."),
-          h("li", null, "Iniciá el temporizador cuando el guía lo indique.")),
-        reloj),
+        piloto
+          ? h("ul", { class: "lista" },
+              h("li", null, "Usá auriculares y buscá un lugar tranquilo."),
+              h("li", null, "Mirá la foto, imaginá que estás en ese lugar y escuchá la grabación durante un minuto, en silencio."),
+              h("li", null, "La grabación se escucha una sola vez. Apretá el botón cuando estés listo."))
+          : h("ul", { class: "lista" },
+              h("li", null, "Escuchá el ambiente sonoro durante un minuto, en silencio, sin hablar con los demás y sin caminar."),
+              h("li", null, "Orientá la cabeza igual que el guía."),
+              h("li", null, "Iniciá el temporizador cuando el guía lo indique.")),
+        reloj,
+        piloto && lugar.foto ? h("img", { class: "foto-lugar", src: lugar.foto, alt: "Foto de " + lugar.nombre }) : null),
       h("div", { class: "acciones" }, btn));
-    alSalir = () => { clearInterval(intervalo); clearTimeout(pase); if (wake) wake.release().catch(() => {}); };
+    alSalir = () => { clearInterval(intervalo); clearTimeout(pase); if (au) au.pause(); if (wake) wake.release().catch(() => {}); };
     if (borrador.escucha_hasta) { empezar_continuar(); }
     function empezar_continuar() {   // se recargó la página con la cuenta en marcha
       btn.disabled = true; btn.textContent = "Escuchando…";
@@ -505,7 +526,7 @@
     const completo = (claves, vals) => { const o = {}; for (const k of claves) o[k] = vals[k] == null ? null : vals[k]; return o; };
     const parteB = Object.assign(completo(Q.claves(Q.parteB), borrador.resp), camposTiempoB());
     const envio = L.construirEnvio({
-      envio_id: L.nuevoEnvioId(rng), version: C.VERSION, codigo: persona.codigo, punto: borrador.punto,
+      envio_id: L.nuevoEnvioId(rng), version: VERSION, codigo: persona.codigo, punto: borrador.punto,
       consentimiento: !persona.consentimiento_enviado,
       parteA: persona.parteA_enviada ? null : Object.assign(completo(Q.claves(Q.parteA), persona.parteA), camposTiempoA()),
       inicio: borrador.inicio, fin: new Date().toISOString(), orden: borrador.orden, parteB
