@@ -21,6 +21,60 @@
   const guardar = () => { alm.set("persona", persona); if (borrador) alm.set("borrador", borrador); else alm.remove("borrador"); };
   const enProceso = () => persona.consintio && !persona.parteA_ok || !!borrador;
 
+  // ---- tiempos por paso, en segundos ----------------------------------------------------
+  // seg: tiempo en pantalla. pausa: tiempo con la página cerrada o en segundo plano. rec: recargas.
+  // Todo vive dentro de persona.t (Parte A) y borrador.t (Parte B), así sobrevive a una recarga.
+  const dos = (n) => String(n).padStart(2, "0");
+  const hora = () => { const d = new Date(); return d.getFullYear() + "-" + dos(d.getMonth() + 1) + "-" + dos(d.getDate()) + " " + dos(d.getHours()) + ":" + dos(d.getMinutes()) + ":" + dos(d.getSeconds()); };
+  const nuevoT = () => ({ seg: {}, pausa: {}, rec: {}, vivo: null, actual: null, inicio_hora: hora() });
+  const asegurarT = (o) => { if (!o.t) o.t = nuevoT(); return o.t; };
+  const entero = (x) => Math.round(x || 0);
+  const suma = (o) => Object.values(o || {}).reduce((s, x) => s + x, 0);
+  let medidor = null;
+  function sumar() {
+    if (!medidor) return;
+    const ahora = Date.now(), dt = (ahora - medidor.ultimo) / 1000, t = medidor.t, k = medidor.clave;
+    const dest = medidor.vis ? t.seg : t.pausa;
+    dest[k] = (dest[k] || 0) + dt;
+    medidor.ultimo = ahora; medidor.vis = !document.hidden; t.vivo = ahora;
+    guardar();
+  }
+  function parar() {
+    if (!medidor) return;
+    sumar(); clearInterval(medidor.int); medidor.t.actual = null; medidor = null; guardar();
+  }
+  function medir(t, clave) {
+    parar();
+    t.actual = clave; t.vivo = Date.now();
+    medidor = { t, clave, ultimo: Date.now(), vis: !document.hidden, int: setInterval(sumar, 2000) };
+  }
+  document.addEventListener("visibilitychange", sumar);
+  window.addEventListener("pagehide", sumar);
+  // Si la página se recargó o se cerró a mitad de un paso, el tiempo cerrado se anota aparte como pausa.
+  function recuperarPausas() {
+    for (const t of [persona.t, borrador && borrador.t]) {
+      if (!t || !t.actual || !t.vivo) continue;
+      const k = t.actual;
+      t.pausa[k] = (t.pausa[k] || 0) + (Date.now() - t.vivo) / 1000;
+      t.rec[k] = (t.rec[k] || 0) + 1;
+      t.vivo = Date.now();
+    }
+    guardar();
+  }
+  function camposTiempoA() {
+    const t = asegurarT(persona), o = { t_A_inicio: t.inicio_hora, t_A_fin: t.fin_hora || hora() };
+    for (const p of Q.parteA) { o["t_A_" + p.id + "_s"] = entero(t.seg[p.id]); o["t_A_" + p.id + "_pausa_s"] = entero(t.pausa[p.id]); }
+    o.t_A_total_s = entero(suma(t.seg)); o.t_A_pausa_s = entero(suma(t.pausa)); o.t_A_recargas = suma(t.rec);
+    return o;
+  }
+  function camposTiempoB() {
+    const t = asegurarT(borrador), o = { t_B_inicio: t.inicio_hora, t_B_fin: hora() };
+    for (const k of ["escucha"].concat(Q.parteB.map((p) => p.id))) { o["t_B_" + k + "_s"] = entero(t.seg[k]); o["t_B_" + k + "_pausa_s"] = entero(t.pausa[k]); }
+    o.t_B_total_s = entero(suma(t.seg)); o.t_B_pausa_s = entero(suma(t.pausa)); o.t_B_recargas = suma(t.rec);
+    o.t_sesion_s = persona.t && persona.t.sesion_inicio ? entero((Date.now() - persona.t.sesion_inicio) / 1000) : "";
+    return o;
+  }
+
   window.addEventListener("beforeunload", (e) => {
     if (enProceso()) { e.preventDefault(); e.returnValue = ""; }
   });
@@ -124,6 +178,7 @@
       si: "Sí, reiniciar", no: "No, seguir acá", peligro: true
     });
     if (!ok) return;
+    parar();
     persona = { codigo: null, consintio: false, consentimiento_enviado: false, parteA: {}, parteA_ok: false, parteA_enviada: false, paso_A: 0, puntos_hechos: [] };
     borrador = null; guardar(); pantallaConsentimiento();
   }
@@ -178,7 +233,8 @@
         if (otro) { caja.hidden = v !== conTexto.v; if (caja.hidden) { otro.value = ""; delete vals[q.id + "_otro"]; cambio(); } }
       };
       return h("fieldset", { class: "pregunta" }, h("legend", null, q.texto), q.ayuda && h("p", { class: "ayuda" }, q.ayuda),
-        h("div", { class: "opciones" }, q.opciones.map((o) => radio(name, o, vals[q.id], elegir))), caja);
+        h("div", { class: q.enFila ? "opciones en-fila" : "opciones", style: q.enFila ? "grid-template-columns:repeat(" + q.opciones.length + ",1fr)" : null },
+          q.opciones.map((o) => radio(name, o, vals[q.id], elegir))), caja);
     }
     if (q.tipo === "numero") {
       const id = uid();
@@ -204,28 +260,38 @@
       return h("div", { class: "pregunta" }, h("label", { for: id, style: "font-weight:600;display:block;margin-bottom:8px" }, q.texto), ta);
     }
     // Grillas, de a una fila por tarjeta. Las escalas numeradas van en horizontal; las demás, en lista.
-    const horizontal = q.tipo === "atributos" || q.tipo === "escala7";
-    const filas = q.tipo === "atributos" ? ordenAtributos.map((id) => q.filas.find((f) => f.id === id)) : q.filas;
-    let opciones, extremos, leyenda;
-    if (q.tipo === "escala7") {
+    const horizontal = q.tipo === "atributos" || q.tipo === "escala7" || q.tipo === "escala";
+    const filas = q.tipo === "atributos" ? ordenAtributos.map((id) => q.filas.find((f) => f.id === id)) : (q.filas || [{ id: null, t: "" }]);   // sin filas, una sola fila con la clave de la pregunta
+    let opciones, extremos, leyenda, leyendaLista, conTexto = false;
+    // Si las palabras son cortas (caben en dos renglones bajo cada círculo) van debajo del círculo; si no, en una lista arriba.
+    const caben = (ord) => ord.every((o) => o.t.length <= 22 && Math.max(...o.t.split(" ").map((w) => w.length)) <= 14);
+    const puntos = (ord, forzar) => {
+      conTexto = forzar || (!q.lista && caben(ord));   // q.lista fuerza la lista arriba
+      if (forzar) leyenda = "Escala de «" + ord[0].t + "» a «" + ord[ord.length - 1].t + "».";   // aviso arriba para leer bien las filas
+      opciones = ord.map((o) => ({ v: o.v, t: conTexto ? o.t.replace("ni en", "ni\u00A0en").replace("Completamente", "Comple\u00ADta\u00ADmente").replace(/(\S{4,})mente/g, "$1\u00ADmente") : String(o.v), aria: o.v + ", " + o.t }));   // guion suave antes de "mente" para cortar bien en celulares angostos
+      if (!conTexto) {
+        extremos = [ord[0].t, ord[ord.length - 1].t];
+        leyendaLista = h("ul", { class: "leyenda" }, ord.map((o) => h("li", null, h("strong", null, o.v), " = " + o.t)));
+      }
+    };
+    if (q.tipo === "escala") {   // valores de menor a mayor, con todas las palabras en una leyenda
+      puntos(q.opciones.slice().sort((x, y) => x.v - y.v));
+    } else if (q.tipo === "escala7") {
       opciones = [0, 1, 2, 3, 4, 5, 6].map((v) => ({ v, t: String(v), aria: v === 0 ? "0, nada" : v === 6 ? "6, completamente" : String(v) }));
       extremos = q.extremos; leyenda = "0 = " + q.extremos[0] + ", 6 = " + q.extremos[1];
     } else if (q.tipo === "atributos") {
-      const ord = q.opciones.slice().sort((a, b) => a.v - b.v);
-      opciones = ord.map((o) => ({ v: o.v, t: String(o.v), aria: o.v + ", " + o.t }));
-      extremos = [ord[0].t, ord[ord.length - 1].t];
-      leyenda = ord.map((o) => o.v + " = " + o.t).join(". ") + ".";
+      puntos(q.opciones.slice().sort((x, y) => x.v - y.v), true);   // las ocho escalas llevan siempre las palabras debajo, en una fila más ancha
     } else {
       opciones = q.opciones;
     }
-    return h("fieldset", { class: "pregunta" }, h("legend", null, q.texto),
-      leyenda && h("p", { class: "ayuda" }, leyenda),
+    return h("fieldset", { class: "pregunta" }, h("legend", null, q.texto), q.ayuda && h("p", { class: "ayuda" }, q.ayuda),
+      leyenda && h("p", { class: "ayuda" }, leyenda), leyendaLista,
       filas.map((f) => {
         const name = uid();
-        const k = clave(f.id);
-        const lista = h("div", { class: horizontal ? "escala n" + opciones.length : "opciones", style: horizontal ? "grid-template-columns:repeat(" + opciones.length + ",1fr)" : null },
+        const k = f.id == null ? q.id : clave(f.id);
+        const lista = h("div", { class: horizontal ? "escala n" + opciones.length + (q.tipo === "escala" || q.tipo === "atributos" || q.tipo === "escala7" ? " puntos" : "") + (conTexto ? " con-texto" : "") + (conTexto && q.tipo === "atributos" ? " ancha" : "") : "opciones", style: horizontal ? "grid-template-columns:repeat(" + opciones.length + ",minmax(0,1fr))" : null },
           opciones.map((o) => radio(name, o, vals[k], (v) => set(k, v))));
-        return h("fieldset", { class: "fila" }, h("legend", null, f.t), lista,
+        return h("fieldset", { class: "fila" }, f.t && h("legend", null, f.t), lista,
           extremos && h("div", { class: "extremos", "aria-hidden": "true" }, h("span", null, extremos[0]), h("span", null, extremos[1])));
       }));
   }
@@ -286,6 +352,7 @@
   // ---- flujo --------------------------------------------------------------------------
   function pantallaConsentimiento() {
     pantalla = "consentimiento";
+    parar();
     const intro = h("p", null, "Esta encuesta es parte de mi investigación para mi Tesis de la carrera de Ingeniería de Sonido por la Universidad Nacional de Tres de Febrero (UNTREF).");
     const items = h("ul", { class: "lista" },
       h("li", null, "La encuesta es ", h("strong", null, "anónima, voluntaria"), " y ", h("strong", null, "todas las preguntas son opcionales"), "."),
@@ -297,13 +364,14 @@
     const btn = h("button", { class: "principal", disabled: true, onclick: () => {
       persona.codigo = L.nuevoCodigo(rng);   // interno: une las respuestas de la misma persona, nadie lo ve
       persona.consintio = true;
+      persona.t = nuevoT(); persona.t.sesion_inicio = Date.now();
       guardar();
       siguientePantalla();
     } }, "Comenzar");
     chk.addEventListener("change", () => { btn.disabled = !chk.checked; });
     mostrar(
-      h("h1", null, "Evaluación del ambiente sonoro del Parque Los Andes"),
-      h("div", { class: "tarjeta" }, h("p", null, "Queremos saber cómo percibís los sonidos de este parque."), intro, items,
+      h("h1", null, "Evaluación del paisaje sonoro del Parque Los Andes"),
+      h("div", { class: "tarjeta" }, h("p", null, "Queremos saber cómo percibís el paisaje sonoro de este parque, es decir, su ambiente sonoro."), intro, items,
         h("label", { class: "consent", for: "acepto" }, chk, h("span", null, "Acepto participar.")),
         duracion),
       h("div", { class: "acciones" }, btn));
@@ -312,6 +380,7 @@
   function pasoA(i) {
     pantalla = "parteA";
     persona.paso_A = i; guardar();
+    medir(asegurarT(persona), Q.parteA[i].id);
     const pasos = Q.parteA;
     pantallaPaso({
       titulo: pasos[i].titulo,
@@ -319,37 +388,53 @@
       cambio: guardar,
       atras: i > 0 ? () => pasoA(i - 1) : null,
       textoSiguiente: i < pasos.length - 1 ? "Siguiente" : "Terminar esta parte",
-      siguiente: () => { if (i < pasos.length - 1) pasoA(i + 1); else { persona.parteA_ok = true; guardar(); pantallaInicioPunto(); } }
+      siguiente: () => { if (i < pasos.length - 1) pasoA(i + 1); else { parar(); persona.t.fin_hora = hora(); persona.parteA_ok = true; guardar(); pantallaInicioPunto(); } }
     });
   }
 
   function pantallaInicioPunto() {
     pantalla = "hub";
+    parar();
     const hechos = persona.puntos_hechos;
     const sel = h("select", { id: "punto" },
       h("option", { value: "" }, "Elegir…"),
       C.PUNTOS.map((p) => h("option", { value: String(p.id) }, p.nombre + (hechos.includes(p.id) ? " (ya respondido)" : ""))));
     const err = h("div", { "aria-live": "polite" });
     const completos = C.PUNTOS.every((p) => hechos.includes(p.id));
+    const final = completos && !persona.comentario_enviado;   // la pregunta abierta se hace una sola vez, al terminar el paseo
+    const ta = h("textarea", { id: "comentario", maxlength: 1000, rows: 5 });
+    ta.value = persona.comentario_borrador || "";
+    ta.addEventListener("input", () => { persona.comentario_borrador = ta.value; guardar(); });
+    const enviarComentario = () => {
+      const texto = ta.value.trim();
+      if (texto) cola.agregar({ envio_id: L.nuevoEnvioId(rng), tipo: "comentario", version: C.VERSION, codigo: persona.codigo, comentario: texto });
+      persona.comentario_enviado = true; persona.comentario_borrador = ""; guardar();
+      reintentar(); pantallaInicioPunto();
+    };
     mostrar(
       h("h1", null, completos ? "¡Muchas gracias!" : "Test de evaluación sonora"),
       h("div", { class: "tarjeta" },
         h("ul", { class: "puntos" }, C.PUNTOS.map((p) => h("li", null, h("span", null, p.nombre), hechos.includes(p.id) ? h("span", { class: "hecho" }, "Respondido") : h("span", { class: "suave" }, "Pendiente"))))),
-      completos ? h("p", null, "Completó los tres puntos. Puede cerrar esta página.") : h("div", { class: "tarjeta" },
+      completos ? (final
+        ? h("div", { class: "tarjeta" }, h("label", { for: "comentario", style: "font-weight:700;display:block;margin-bottom:8px" },
+            "Pensando en todo el paseo, ¿qué sonido fue el que más te gustó y cuál el que menos? ¿Qué sonido te gustaría que disminuyera o que se agregara? ¿Por qué?"),
+            h("p", { class: "suave" }, "Es opcional. Si no querés escribir nada, tocá el botón igual."), ta)
+        : h("p", null, "Completaste los tres puntos. Podés cerrar esta página.")) : h("div", { class: "tarjeta" },
         h("label", { for: "punto", style: "font-weight:600;display:block;margin-bottom:8px" }, "¿En qué punto de escucha está ahora?"), sel),
       err,
       h("div", { class: "acciones" },
-        completos ? null : h("button", { class: "principal", onclick: async () => {
+        completos ? (final ? h("button", { class: "principal", onclick: enviarComentario }, "Enviar y terminar") : null) : h("button", { class: "principal", onclick: async () => {
           const id = Number(sel.value);
           if (!id) { err.replaceChildren(h("p", { class: "mensaje error" }, "Elija el punto de escucha en el que está.")); return; }
           if (hechos.includes(id) && !(await preguntar({ mensaje: "Ya respondió este punto. ¿Quiere responderlo de nuevo?", si: "Sí, de nuevo", no: "No" }))) return;
-          borrador = { fase: "escucha", punto: id, paso: 0, resp: {}, orden: L.barajar(Q.ATRIBUTOS.map((a) => a.id), rng), inicio: null, escucha_hasta: null };
+          borrador = { fase: "escucha", punto: id, paso: 0, resp: {}, orden: L.barajar(Q.ATRIBUTOS.map((a) => a.id), rng), inicio: null, escucha_hasta: null, t: nuevoT() };
           guardar(); pantallaEscucha();
         } }, "Comenzar")));
   }
 
   function pantallaEscucha() {
     pantalla = "escucha";
+    medir(asegurarT(borrador), "escucha");
     let intervalo = null, wake = null, pase = null;
     const reloj = h("div", { class: "reloj", role: "timer", "aria-live": "off" }, formato(C.SEGUNDOS_ESCUCHA * 1000));
     const btn = h("button", { class: "principal" }, "Comenzar el minuto de escucha");
@@ -402,6 +487,7 @@
   function pasoB(i) {
     pantalla = "parteB";
     borrador.paso = i; guardar();
+    medir(asegurarT(borrador), Q.parteB[i].id);
     const pasos = Q.parteB;
     const punto = C.PUNTOS.find((p) => p.id === borrador.punto);
     pantallaPaso({
@@ -414,13 +500,14 @@
   }
 
   function enviar() {
+    parar();
     // Todas las claves, siempre en el orden de las preguntas, con vacío donde no se contestó.
     const completo = (claves, vals) => { const o = {}; for (const k of claves) o[k] = vals[k] == null ? null : vals[k]; return o; };
-    const parteB = completo(Q.claves(Q.parteB), borrador.resp);
+    const parteB = Object.assign(completo(Q.claves(Q.parteB), borrador.resp), camposTiempoB());
     const envio = L.construirEnvio({
       envio_id: L.nuevoEnvioId(rng), version: C.VERSION, codigo: persona.codigo, punto: borrador.punto,
       consentimiento: !persona.consentimiento_enviado,
-      parteA: persona.parteA_enviada ? null : completo(Q.claves(Q.parteA), persona.parteA),
+      parteA: persona.parteA_enviada ? null : Object.assign(completo(Q.claves(Q.parteA), persona.parteA), camposTiempoA()),
       inicio: borrador.inicio, fin: new Date().toISOString(), orden: borrador.orden, parteB
     });
     persona.consentimiento_enviado = true;
@@ -456,6 +543,7 @@
     return pantallaInicioPunto();
   }
 
+  recuperarPausas();
   actualizarAviso();
   siguientePantalla();
   reintentar();

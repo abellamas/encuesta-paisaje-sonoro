@@ -12,6 +12,14 @@
   --ok: #1d6b3a;
   --radio: 8px;
   --toque: 48px;
+  /* Tamaños de letra de toda la encuesta. Se cambian acá y valen para todas las pantallas. */
+  --fs-titulo: 24px;      /* títulos de cada etapa */
+  --fs-pregunta: 18px;    /* texto de cada pregunta */
+  --fs-texto: 17px;       /* respuestas, ayudas, listas y párrafos */
+  --fs-chico: 15px;       /* avisos y textos secundarios */
+  --fs-etiqueta: 13px;    /* palabras bajo los círculos y pie de página */
+  --circulo: 36px;        /* diámetro de los círculos de las escalas */
+  --ancho: 640px;         /* ancho de todas las pantallas */
 }
 
 * { box-sizing: border-box; }
@@ -20,7 +28,7 @@ body {
   margin: 0;
   background: var(--fondo);
   color: var(--texto);
-  font: 17px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font: var(--fs-texto)/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
 }
@@ -33,20 +41,20 @@ body {
 }
 .cabecera { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .cabecera img { display: block; height: 44px; width: auto; max-width: 60%; }
-.btn-inicio { min-height: 40px; padding: 6px 14px; font-size: 15px; flex: none; border-color: var(--error); color: var(--error); }
+.btn-inicio { min-height: 40px; padding: 6px 14px; font-size: var(--fs-chico); flex: none; border-color: var(--error); color: var(--error); }
 
-.aviso { padding: 10px 16px; font-size: 15px; background: #fff7d6; border-bottom: 1px solid #e0cf7a; color: #5a4a00; }
+.aviso { padding: 10px 16px; font-size: var(--fs-chico); background: #fff7d6; border-bottom: 1px solid #e0cf7a; color: #5a4a00; }
 .aviso button { margin-left: 8px; }
 
-main { max-width: 640px; margin: 0 auto; padding: 16px 16px 32px; outline: none; }
-.pie { max-width: 640px; margin: 0 auto; padding: 0 16px calc(24px + env(safe-area-inset-bottom)); font-size: 13px; color: var(--texto-2); }
+main { max-width: var(--ancho); margin: 0 auto; padding: 16px 16px 32px; outline: none; }
+.pie { max-width: var(--ancho); margin: 0 auto; padding: 0 16px calc(24px + env(safe-area-inset-bottom)); font-size: var(--fs-etiqueta); color: var(--texto-2); }
 
-h1 { font-size: 24px; line-height: 1.25; margin: 8px 0 8px; color: var(--azul); }
-h2 { font-size: 20px; line-height: 1.3; margin: 8px 0 4px; color: var(--azul); }
+h1 { font-size: var(--fs-titulo); line-height: 1.25; margin: 8px 0 8px; color: var(--azul); }
+h2 { font-size: var(--fs-pregunta); line-height: 1.3; margin: 8px 0 4px; color: var(--azul); }
 p { margin: 0 0 12px; }
 .lista { margin: 8px 0 8px 20px; padding: 0; }
 .lista li { margin-bottom: 8px; }
-.suave { color: var(--texto-2); font-size: 15px; }
+.suave { color: var(--texto-2); font-size: var(--fs-chico); }
 
 .tarjeta { background: var(--tarjeta); border-radius: var(--radio); padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 2px rgba(0,0,0,.12); }
 
@@ -56,8 +64,8 @@ p { margin: 0 0 12px; }
 .barra > span { display: block; height: 100%; background: var(--celeste); }
 
 fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
-legend { padding: 0; font-size: max(18px, 1.1em); font-weight: 700; line-height: 1.35; margin-bottom: 8px; }
-.ayuda { color: var(--texto-2); font-size: 1em; line-height: 1.4; margin: -2px 0 10px; }
+legend { padding: 0; font-size: var(--fs-pregunta); font-weight: 700; line-height: 1.35; margin-bottom: 8px; }
+.ayuda { color: var(--texto-2); font-size: var(--fs-texto); line-height: 1.4; margin: -2px 0 10px; }
 .pregunta { margin-bottom: 20px; }
 .fila { padding: 12px 0; border-top: 1px solid #e6e6e6; }
 .fila:first-of-type { border-top: 0; }
@@ -78,8 +86,8 @@ legend { padding: 0; font-size: max(18px, 1.1em); font-weight: 700; line-height:
 .opciones .opcion span { justify-content: flex-start; text-align: left; }
 
 .escala { display: grid; gap: 6px; }
-.escala .opcion span { padding: 6px 2px; font-size: 18px; min-height: var(--toque); }
-.extremos { display: flex; justify-content: space-between; font-size: 15px; color: var(--texto-2); margin-top: 4px; }
+.escala .opcion span { padding: 6px 2px; font-size: var(--fs-texto); min-height: var(--toque); }
+.extremos { display: flex; justify-content: space-between; font-size: var(--fs-chico); color: var(--texto-2); margin-top: 4px; }
 
 input[type="number"], input[type="text"], textarea, select {
   width: 100%; min-height: var(--toque); padding: 10px 12px; font: inherit; color: inherit;
@@ -105,7 +113,7 @@ button.enlace { border: 0; background: none; text-decoration: underline; padding
 .consent { display: flex; gap: 12px; align-items: flex-start; font-weight: 600; margin: 12px 0; }
 .consent input { width: 24px; height: 24px; margin-top: 2px; flex: none; accent-color: var(--azul); }
 
-.mensaje { padding: 10px 12px; border-radius: var(--radio); margin-top: 12px; font-size: 15px; }
+.mensaje { padding: 10px 12px; border-radius: var(--radio); margin-top: 12px; font-size: var(--fs-chico); }
 .mensaje.aviso-suave { background: #fff7d6; border: 1px solid #e0cf7a; color: #5a4a00; }
 .mensaje.ok { background: #e6f4ea; border: 1px solid #a8d5b5; color: var(--ok); }
 .mensaje.error { background: #fdecea; border: 1px solid #f0b4b0; color: var(--error); }
@@ -116,7 +124,7 @@ button.enlace { border: 0; background: none; text-decoration: underline; padding
 .hecho { color: var(--ok); font-weight: 600; }
 
 @media (min-width: 560px) {
-  body { font-size: 18px; }
+  :root { --fs-texto: 18px; --fs-pregunta: 20px; --fs-etiqueta: 14px; }
 }
 @media (prefers-reduced-motion: no-preference) {
   .barra > span { transition: width .25s ease; }
@@ -155,8 +163,25 @@ body[data-parte="B"] .barra > span { background: #2fb36b; }
 .falta { background: #fff1d6; box-shadow: -5px 0 0 #e8890c; border-radius: 6px; }
 .otro-caja.falta input.otro { border-color: #e8890c; }
 .modal.suave { border-top: 8px solid #e8890c; }
-.modal.suave h2 { color: #7a4300; font-size: 24px; }
-.modal.suave p { font-size: 19px; font-weight: 500; line-height: 1.4; }
-.modal.suave button { min-height: 52px; font-size: 17px; }
+.modal.suave h2 { color: #7a4300; font-size: var(--fs-titulo); }
+.modal.suave p { font-size: var(--fs-pregunta); font-weight: 500; line-height: 1.4; }
+.modal.suave button { min-height: 52px; font-size: var(--fs-texto); }
 .modal.suave #dlg-no { background: #e3f3fb; border-color: #29afe5; color: #1b4d7a; font-weight: 600; }
-.intro-paso { font-size: 18px; line-height: 1.45; margin: 4px 0 12px; }
+.intro-paso { font-size: var(--fs-texto); line-height: 1.45; margin: 4px 0 12px; }
+.leyenda { list-style: none; margin: 0 0 14px; padding: 12px 14px; font-size: var(--fs-texto); line-height: 1.5; background: #eef5fb; border-left: 4px solid var(--azul); border-radius: 6px; }
+.leyenda strong { color: var(--azul); }
+
+/* Escala de la OMS, círculos unidos por una línea con el número abajo */
+.escala.puntos { position: relative; gap: 0; margin: 0 -10px; }
+.escala.puntos::before { content: ""; position: absolute; left: 8.33%; right: 8.33%; top: calc(var(--circulo) / 2 - 1.5px); height: 3px; background: var(--borde); }
+.escala.puntos .opcion span { flex-direction: column; justify-content: flex-start; gap: 4px; min-height: 0; padding: 0 0 6px; border: 0; background: transparent; font-size: var(--fs-texto); }
+.escala.puntos .opcion span::before { content: ""; position: relative; z-index: 1; box-sizing: border-box; width: var(--circulo); height: var(--circulo); border-radius: 50%; border: 2px solid var(--azul); background: #fff; }
+.escala.puntos .opcion input:checked + span { background: transparent; color: var(--azul); font-weight: 700; }
+.escala.puntos .opcion input:checked + span::before { background: var(--azul); box-shadow: inset 0 0 0 5px #fff; }
+.escala.puntos .opcion input:focus-visible + span::before { outline: 3px solid var(--celeste); outline-offset: 2px; }
+.opciones.en-fila .opcion span { justify-content: center; text-align: center; padding: 8px 6px; }
+.escala.puntos.n5::before { left: 10%; right: 10%; }
+.escala.puntos.n7::before { left: 7.14%; right: 7.14%; }
+.escala.puntos.con-texto .opcion span { font-size: var(--fs-etiqueta); line-height: 1.2; text-align: center; padding: 0 2px 6px; overflow-wrap: break-word; hyphens: auto; }
+.escala.puntos.con-texto .opcion input:checked + span { font-weight: 700; }
+.escala.puntos.n7.con-texto .opcion span { font-size: calc(var(--fs-etiqueta) - 1px); }

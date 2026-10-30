@@ -124,20 +124,20 @@ async function main() {
   await captura("02-parteA-1");
   assert.equal(await js("getComputedStyle(document.querySelector('h1')).color"), "rgb(36, 99, 154)", "la Parte A va en azul");
   assert.equal(await js("document.body.dataset.parte"), "A");
-  await elegir("¿Cuánto tardás", "Menos de 10 minutos");
+  await elegir("¿Cuánto tardás", "Menos de 10 minutos caminando");
   // tocar de nuevo la opción elegida la borra, de la pantalla y de lo guardado
-  await elegir("¿Cuánto tardás", "Menos de 10 minutos");
+  await elegir("¿Cuánto tardás", "Menos de 10 minutos caminando");
   assert.equal(await js("document.querySelectorAll('#app input[type=radio]:checked').length"), 0, "debe quedar sin elegir");
   assert.equal(await js("JSON.parse(localStorage.getItem('persona')).parteA.A1_distancia"), null, "también se borra lo guardado");
-  await elegir("¿Cuánto tardás", "Entre 10 y 30");
+  await elegir("¿Cuánto tardás", "Entre 10 y 30 minutos");
   assert.equal(await js("JSON.parse(localStorage.getItem('persona')).parteA.A1_distancia"), "10_30");
-  await elegir("¿Cuánto tardás", "Entre 10 y 30");
-  await elegir("¿Cuánto tardás", "Menos de 10 minutos");
+  await elegir("¿Cuánto tardás", "Entre 10 y 30 minutos");
+  await elegir("¿Cuánto tardás", "Menos de 10 minutos caminando");
   assert.equal(await js("JSON.parse(localStorage.getItem('persona')).parteA.A1_distancia"), "menos_10");
   await js(`(()=>{const i=document.querySelector('input[type=number]'); i.value='35'; i.dispatchEvent(new Event('input',{bubbles:true}));})()`);
   await elegir("¿Cuál es su género", "Femenino");
   await boton("Siguiente");
-  assert.ok((await texto()).includes("sin responder"), "debe avisar de lo que falta");
+  assert.ok((await js("document.querySelector('.modal').innerText")).includes("sin responder"), "debe avisar de lo que falta");
   await boton("Completar lo que falta");   // cierra el cuadro y se queda en el mismo paso
   await recorrer(3, "Terminar esta parte");
 
@@ -170,8 +170,8 @@ async function main() {
   await js(`(()=>{const f=[...document.querySelectorAll('fieldset.fila')].find(f=>f.querySelector('legend').innerText==='agradable'); f.querySelectorAll('label.opcion')[4].querySelector('input').click();})()`);
   // ---- se cierra el navegador acá (recarga) ----
   await cargar();
-  assert.ok((await texto()).includes("Paso 2 de 5"), "debe volver al paso donde estaba");
-  assert.equal(await js(`[...document.querySelectorAll('fieldset.fila')].find(f=>f.querySelector('legend').innerText==='agradable').querySelector('input:checked').nextSibling.textContent`), "5");
+  assert.ok((await texto()).includes("Paso 2 de 4"), "debe volver al paso donde estaba");
+  assert.equal(await js(`[...document.querySelectorAll('fieldset.fila')].find(f=>f.querySelector('legend').innerText==='agradable').querySelector('input:checked').nextSibling.textContent`), "Muy de acuerdo");
   assert.equal(await js("JSON.parse(localStorage.getItem('borrador')).orden.join('-')"), orden1, "el orden de los atributos no debe cambiar al recargar");
   await completar(); await boton("Siguiente");
   await captura("09-B3-B6");
@@ -180,9 +180,6 @@ async function main() {
   await js(`(()=>{const f=document.querySelectorAll('fieldset.fila')[0]; f.querySelectorAll('label.opcion')[5].querySelector('input').click();})()`);
   await completar();
   await captura("10-B7");
-  await boton("Siguiente");
-  await js(`(()=>{const t=document.querySelector('textarea'); t.value='Pájaros; me molestó el colectivo'; t.dispatchEvent(new Event('input',{bubbles:true}));})()`);
-  await captura("11-B8");
 
   // 5. envío sin señal, después con señal
   falla = true;
@@ -209,7 +206,6 @@ async function main() {
   assert.equal(e.parteB.B1_naturales, 4);
   assert.equal(e.parteB.B3_global, 4);
   assert.equal(e.parteB.B7_a, 5);
-  assert.equal(e.parteB.B8_abierta, "Pájaros; me molestó el colectivo");
 
   // 6. segundo punto: la Parte A no se vuelve a pedir y el consentimiento no se repite
   await boton("Seguir con otro punto");
@@ -218,7 +214,7 @@ async function main() {
   await elegirPunto(3);
   await boton("Comenzar"); await boton("Comenzar el minuto de escucha");
   await dormir(5700);   // termina la cuenta y pasa sola a las preguntas
-  await recorrer(5, "Enviar respuestas");
+  await recorrer(4, "Enviar respuestas");
   await dormir(1000);
   assert.equal(recibidos.length, 2);
   assert.equal(recibidos[1].consentimiento, false);
@@ -238,9 +234,11 @@ async function main() {
     assert.ok(r.parteB.duracion_s !== "" && r.parteB.inicio && r.parteB.fin);
   }
   // las columnas llegan siempre completas y en orden ascendente, no en el orden en que se contestó
-  assert.deepEqual(Object.keys(e.parteA), claves(Q.parteA), "Parte A fuera de orden");
+  assert.deepEqual(Object.keys(e.parteA).filter((k) => !k.startsWith("t_")), claves(Q.parteA), "Parte A fuera de orden");
+  assert.ok(Object.keys(e.parteA).some((k) => k === "t_A_total_s") && e.parteA.t_A_total_s >= 0, "faltan los tiempos de la Parte A");
   for (const r of recibidos) {
-    assert.deepEqual(Object.keys(r.parteB), ["inicio", "fin", "duracion_s", "orden_B2", ...claves(Q.parteB)], "Parte B fuera de orden");
+    assert.deepEqual(Object.keys(r.parteB).filter((k) => !k.startsWith("t_")), ["inicio", "fin", "duracion_s", "orden_B2", ...claves(Q.parteB)], "Parte B fuera de orden");
+    assert.ok("t_B_total_s" in r.parteB && "t_sesion_s" in r.parteB, "faltan los tiempos de la Parte B");
     assert.ok(r.parteB.orden_B2.split("-").every((x) => Q.ATRIBUTOS.some((a) => a.id === x)), "orden_B2 debe usar los nombres en español");
   }
   assert.deepEqual(Q.ATRIBUTOS.map((a) => a.id).map((id) => "B2_" + id), claves(Q.parteB).filter((k) => k.startsWith("B2_")));
@@ -267,11 +265,26 @@ async function main() {
   // y a mitad de la Parte A
   await clic("#acepto"); await clic("button.principal"); await dormir(200);
   assert.ok((await js("document.querySelector('.cabecera img').getBoundingClientRect().height")) < 60, "el logo vuelve a su tamaño normal");
-  await elegir("¿Cuánto tardás", "Menos de 10 minutos");
+  await elegir("¿Cuánto tardás", "Menos de 10 minutos caminando");
   await clic("#btn-inicio"); await clic("#dlg-si"); await dormir(200);
   assert.ok((await texto()).includes("Acepto participar"));
   assert.deepEqual(await js("JSON.parse(localStorage.getItem('persona')).parteA"), {}, "se borra la Parte A no enviada");
   assert.equal(recibidos.length, 2, "reiniciar no envía nada");
+
+  // 9. al terminar los tres puntos aparece la pregunta abierta, una sola vez
+  await js(`localStorage.setItem('persona', JSON.stringify({codigo:'ABC234',consintio:true,consentimiento_enviado:true,parteA:{},parteA_ok:true,parteA_enviada:true,paso_A:2,puntos_hechos:[1,2,3]})); localStorage.removeItem('borrador'); localStorage.removeItem('cola_envios');`);
+  await cargar();
+  assert.ok((await texto()).includes("Pensando en todo el paseo"), "debe aparecer la pregunta final");
+  await captura("15-comentario-final");
+  await js(`(()=>{const t=document.getElementById('comentario'); t.value='Pájaros; me molestó el colectivo'; t.dispatchEvent(new Event('input',{bubbles:true}));})()`);
+  await boton("Enviar y terminar");
+  await dormir(1000);
+  assert.equal(recibidos.length, 3);
+  assert.equal(recibidos[2].tipo, "comentario");
+  assert.equal(recibidos[2].comentario, "Pájaros; me molestó el colectivo");
+  assert.equal(recibidos[2].codigo, "ABC234");
+  assert.ok(!(await texto()).includes("Pensando en todo el paseo"), "la pregunta no se repite");
+  assert.ok((await texto()).includes("Podés cerrar esta página"));
 
   assert.deepEqual(errores, [], "errores de JavaScript en la página");
   console.log("OK. Capturas en", CAPTURAS);

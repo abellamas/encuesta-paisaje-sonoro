@@ -6,7 +6,7 @@ window.CONFIG = {
   // Debe coincidir con TOKEN en apps-script/Code.gs. No es secreto (la página es pública),
   // sólo evita envíos que no vengan de esta página.
   TOKEN: "1e93ae6057cfcaab024e1237",
-  VERSION: "2026-10-v1",
+  VERSION: "2026-10-v2",
   SEGUNDOS_ESCUCHA: 60,
   // Opciones del desplegable de la Parte B. Se puede cambiar el nombre, por ejemplo
   // "Punto 1, entrada principal". El id es lo que queda en la planilla.

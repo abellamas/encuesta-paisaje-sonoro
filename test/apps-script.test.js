@@ -95,3 +95,22 @@ test("las columnas salen en el orden en que llegan las claves y las respuestas v
   assert.equal(fila2[enc.indexOf("B2_estimulante")], 4);
   assert.equal(hojas.respuestas.filas[1][enc.indexOf("B2_estimulante")], "");   // el vacío queda vacío, en su columna
 });
+
+test("un texto que empieza con = queda como texto y no como fórmula", () => {
+  const { hojas, post } = cargar();
+  post(base({ parteA: { A2_edad: 31, A3_genero_otro: "=1+1" } }));
+  const f = hojas.participantes.filas;
+  assert.equal(f[1][f[0].indexOf("A3_genero_otro")], "'=1+1");
+  assert.equal(f[1][f[0].indexOf("A2_edad")], 31, "los números no se tocan");
+});
+
+test("el comentario final va a su propia hoja y un reintento no lo duplica", () => {
+  const { hojas, post } = cargar();
+  const c = { token: TOKEN, tipo: "comentario", envio_id: "C1", codigo: "ABC234", version: "v1", comentario: "Pájaros; me molestó el colectivo" };
+  assert.equal(post(c).ok, true);
+  assert.equal(post(c).duplicado, true);
+  const f = hojas.comentarios.filas;
+  assert.equal(f.length, 2, "encabezado y una sola fila");
+  assert.equal(f[1][f[0].indexOf("comentario")], "Pájaros; me molestó el colectivo");
+  assert.equal(hojas.respuestas, undefined, "no toca las otras hojas");
+});

@@ -2,6 +2,7 @@
 // Hojas que crea solas, con las columnas que van apareciendo:
 //   respuestas        una fila por punto y participante (Parte B)
 //   participantes     una fila por participante (Parte A)
+//   comentarios       el comentario final de cada participante, una sola vez al terminar el paseo
 //   consentimientos   una fila por aceptación, con el código anónimo para poder comprobar que cada
 //                     participante aceptó (no tiene ningún dato que identifique a la persona)
 //
@@ -11,6 +12,7 @@ const TOKEN = "1e93ae6057cfcaab024e1237";
 const HOJA_RESPUESTAS = "respuestas";
 const HOJA_PARTICIPANTES = "participantes";
 const HOJA_CONSENTIMIENTOS = "consentimientos";
+const HOJA_COMENTARIOS = "comentarios";
 
 function doGet() {
   return salida({ ok: true, estado: "activo" });
@@ -25,6 +27,12 @@ function doPost(e) {
     if (!d.envio_id || !d.codigo) return salida({ ok: false, error: "faltan_datos" });
 
     const ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (d.tipo === "comentario") {
+      const hojaC = hoja(ss, HOJA_COMENTARIOS);
+      if (existe(hojaC, "envio_id", d.envio_id)) return salida({ ok: true, duplicado: true });
+      agregarFila(hojaC, { recibido: new Date(), envio_id: d.envio_id, codigo: d.codigo, version: d.version, comentario: d.comentario });
+      return salida({ ok: true });
+    }
     const hojaR = hoja(ss, HOJA_RESPUESTAS);
 
     // Si ya llegó este envío (un reintento), no se escribe de nuevo.
@@ -63,7 +71,22 @@ function agregarFila(sh, obj) {
     sh.getRange(1, cols.length + 1, 1, nuevas.length).setValues([nuevas]);
     cols = cols.concat(nuevas);
   }
-  sh.appendRow(cols.map(function (c) { return obj[c] === undefined || obj[c] === null ? "" : obj[c]; }));
+  sh.appendRow(cols.map(function (c) { return obj[c] === undefined || obj[c] === null ? "" : seguro(obj[c]); }));
+}
+
+// Un texto que empieza con = + - o @ se podría tomar como fórmula. Con el apóstrofe queda como texto.
+function seguro(v) {
+  return typeof v === "string" && /^[=+\-@\t\r]/.test(v) ? "'" + v : v;
+}
+
+// Borra las hojas de la planilla. Se corre a mano, una sola vez, para sacar los datos de prueba
+// antes del trabajo de campo. Las hojas se vuelven a crear solas con la primera respuesta.
+function limpiarPruebas() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  [HOJA_RESPUESTAS, HOJA_PARTICIPANTES, HOJA_CONSENTIMIENTOS, HOJA_COMENTARIOS].forEach(function (n) {
+    const sh = ss.getSheetByName(n);
+    if (sh) ss.deleteSheet(sh);
+  });
 }
 
 function existe(sh, columna, valor) {
