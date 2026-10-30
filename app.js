@@ -376,7 +376,7 @@
     chk.addEventListener("change", () => { btn.disabled = !chk.checked; });
     mostrar(
       h("h1", null, "Evaluación del paisaje sonoro del Parque Los Andes"),
-      h("div", { class: "tarjeta" }, h("p", null, "Queremos saber cómo percibís el paisaje sonoro de este parque, es decir, su ambiente sonoro."), intro, items,
+      h("div", { class: "tarjeta" }, h("p", null, "En esta encuesta vas a evaluar, a través de tu percepción, cómo es el paisaje sonoro de este parque urbano."), intro, items,
         h("label", { class: "consent", for: "acepto" }, chk, h("span", null, "Acepto participar.")),
         duracion),
       h("div", { class: "acciones" }, btn));
