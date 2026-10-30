@@ -139,6 +139,34 @@ function gruposPorHora(respuestas, codigos) {
   return Object.keys(grupos).map(function (k) { return grupos[k]; });
 }
 
+// Promedio de los valores que son números mayores que cero, con la cantidad de datos usados.
+function promedio(valores) {
+  const v = valores.map(Number).filter(function (x) { return isFinite(x) && x > 0; });
+  return { segundos: v.length ? Math.round(v.reduce(function (a, b) { return a + b; }, 0) / v.length) : null, n: v.length };
+}
+
+function tiemposPromedio(personas, respuestas, puntosDe) {
+  const ultimaPorPunto = {};   // código -> punto -> segundos de la Parte B (la última respuesta de ese punto)
+  respuestas.forEach(function (r) {
+    (ultimaPorPunto[r.codigo] = ultimaPorPunto[r.codigo] || {})[r.punto] = Number(r.t_B_total_s);
+  });
+  const porPunto = {};
+  [1, 2, 3].forEach(function (p) {
+    porPunto[p] = promedio(respuestas.filter(function (r) { return Number(r.punto) === p; }).map(function (r) { return r.t_B_total_s; }));
+  });
+  const completo = [];   // Parte A más los tres puntos, de quienes hicieron los tres
+  personas.forEach(function (p) {
+    const u = ultimaPorPunto[p.codigo] || {};
+    if ([1, 2, 3].every(function (n) { return u[n] > 0; }) && Number(p.t_A_total_s) > 0) completo.push(Number(p.t_A_total_s) + u[1] + u[2] + u[3]);
+  });
+  return {
+    parte_a: promedio(personas.map(function (p) { return p.t_A_total_s; })),
+    parte_b: promedio(respuestas.map(function (r) { return r.t_B_total_s; })),
+    por_punto: porPunto,
+    recorrido_completo: promedio(completo)
+  };
+}
+
 function panel(version) {
   const coincide = function (r) { return !version || String(r.version) === String(version); };
   const personas = leerHoja(HOJA_PARTICIPANTES).filter(coincide);
@@ -198,7 +226,8 @@ function panel(version) {
       comentarios: comentarios.length,
       origen: origen
     },
-    por_punto: porPunto, grupos: grupos, recorridos: rutas, recientes: recientes
+    por_punto: porPunto, grupos: grupos, recorridos: rutas, recientes: recientes,
+    tiempos: tiemposPromedio(personas, respuestas, puntosDe)
   };
 }
 

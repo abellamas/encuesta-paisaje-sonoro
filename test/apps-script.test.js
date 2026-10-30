@@ -200,3 +200,22 @@ test("el recorrido de cada grupo se fija desde el panel, la encuesta lo lee y el
   assert.equal(post({ accion: "fijar_recorrido", clave: "secreta", grupo: 1, recorrido: null }).ok, true);
   assert.equal(post({ accion: "panel", clave: "secreta" }).grupos.find((x) => x.nombre === "Grupo 1").recorrido, null, "se puede quitar");
 });
+
+test("el panel calcula el tiempo promedio de la Parte A, de cada punto y del recorrido completo", () => {
+  const { post, props } = cargar();
+  props.ADMIN_CLAVE = "secreta";
+  const envio = (codigo, punto, tA, tB) => post(base({
+    envio_id: codigo + "-" + punto, codigo, punto, version: "v2", consentimiento: punto === 1,
+    parteA: punto === 1 ? { A2_edad: 30, t_A_total_s: tA } : null,
+    parteB: { inicio: "2026-10-30T15:0" + punto + ":00.000Z", t_B_total_s: tB }
+  }));
+  envio("AAA111", 1, 100, 200); envio("AAA111", 2, 0, 220); envio("AAA111", 3, 0, 240);   // completó los tres, 100 + 200 + 220 + 240 = 760
+  envio("BBB222", 1, 140, 180); envio("BBB222", 2, 0, 200);                                // le falta el tercer punto
+  const p = post({ accion: "panel", clave: "secreta", version: "v2" });
+  assert.deepEqual(p.tiempos.parte_a, { segundos: 120, n: 2 });
+  assert.deepEqual(p.tiempos.por_punto["1"], { segundos: 190, n: 2 });
+  assert.deepEqual(p.tiempos.por_punto["3"], { segundos: 240, n: 1 });
+  assert.deepEqual(p.tiempos.parte_b, { segundos: 208, n: 5 });
+  assert.deepEqual(p.tiempos.recorrido_completo, { segundos: 760, n: 1 }, "solo cuenta a quien hizo los tres puntos");
+  assert.deepEqual(post({ accion: "panel", clave: "secreta", version: "otra" }).tiempos.parte_a, { segundos: null, n: 0 });
+});

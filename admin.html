@@ -88,6 +88,10 @@
     <h2>Avance</h2>
     <div class="datos" id="datos"></div>
 
+    <h2>Tiempo promedio</h2>
+    <div class="datos" id="tiempos"></div>
+    <p class="suave" id="nota-tiempos"></p>
+
     <h2>Por punto de escucha</h2>
     <div class="datos" id="puntos"></div>
 
@@ -130,6 +134,13 @@
     return res;
   }
 
+  function minseg(s) {
+    if (s === "" || s == null || isNaN(s)) return "";
+    s = Math.round(Number(s));
+    const m = Math.floor(s / 60), r = s % 60;
+    return m ? m + " min " + String(r).padStart(2, "0") + " s" : r + " s";
+  }
+
   function nombrePunto(id) { const p = C.PUNTOS.find((x) => x.id === Number(id)); return p ? p.nombre : "Punto " + id; }
   function hora(v) { const d = new Date(v); return isNaN(d) ? "" : d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }); }
 
@@ -142,6 +153,15 @@
      ["Invitadas con cita previa", o.invitado], ["Se sumaron en el lugar", o.en_el_lugar]].forEach(([t, n]) => {
       const c = el("div", null, "dato"); c.append(el("b", n), el("span", t, "suave")); datos.append(c);
     });
+    const tiempos = $("tiempos"); tiempos.replaceChildren();
+    const tp = d.tiempos;
+    [["Parte A", tp.parte_a], ["Parte B, por punto", tp.parte_b]]
+      .concat(C.PUNTOS.map((p) => ["Parte B en " + p.nombre, tp.por_punto[p.id]]))
+      .concat([["Recorrido completo", tp.recorrido_completo]]).forEach(([t, v]) => {
+        const c = el("div", null, "dato");
+        c.append(el("b", v && v.segundos != null ? minseg(v.segundos) : "–"), el("span", t + (v && v.n ? " (" + v.n + ")" : ""), "suave")); tiempos.append(c);
+      });
+    $("nota-tiempos").textContent = "Es el tiempo con la pantalla abierta, sin contar las pausas. Entre paréntesis, la cantidad de datos. El recorrido completo suma la Parte A y los tres puntos de quienes los hicieron.";
     const puntos = $("puntos"); puntos.replaceChildren();
     C.PUNTOS.forEach((p) => { const c = el("div", null, "dato"); c.append(el("b", d.por_punto[p.id] || 0), el("span", p.nombre, "suave")); puntos.append(c); });
 
@@ -166,7 +186,7 @@
     const t = $("recientes"); t.replaceChildren();
     const cab = el("tr"); ["Hora", "Código", "Punto", "Duración"].forEach((x) => cab.append(el("th", x))); t.append(cab);
     d.recientes.forEach((x) => {
-      const f = el("tr"); [hora(x.recibido), x.codigo, nombrePunto(x.punto), x.duracion_s === "" ? "" : x.duracion_s + " s"].forEach((v) => f.append(el("td", v))); t.append(f);
+      const f = el("tr"); [hora(x.recibido), x.codigo, nombrePunto(x.punto), minseg(x.duracion_s)].forEach((v) => f.append(el("td", v))); t.append(f);
     });
     $("actualizado").textContent = "Actualizado " + new Date().toLocaleTimeString("es-AR");
   }
