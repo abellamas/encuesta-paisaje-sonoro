@@ -12,6 +12,8 @@
   // se guardan con la versión "piloto" y un código que empieza con PILOTO, para no mezclarlas con las reales.
   const piloto = /[?&]piloto(=|&|$)/.test(location.search);
   const VERSION = piloto ? "piloto" : C.VERSION;
+  const nombreDe = (id) => (C.PUNTOS.find((p) => p.id === id) || {}).nombre;
+  const letraDe = (id) => (C.PUNTOS.find((p) => p.id === id) || {}).letra;   // A, B o C, como se nombra cada punto en el panel
   if (piloto) document.body.insertBefore(h("div", { class: "banda-piloto" }, "Modo piloto. Tus respuestas se guardan como prueba."), aviso);
 
   // ---- estado guardado ----------------------------------------------------------------
@@ -179,7 +181,7 @@
   async function reiniciar() {
     const ok = await preguntar({
       titulo: "¿Reiniciar la encuesta?",
-      mensaje: "Se reiniciará la encuesta y volverá a la primera pantalla. Se borrarán las respuestas de este participante que todavía no envió. Lo que ya envió no se pierde.",
+      mensaje: "Se reiniciará la encuesta y volverá a la primera pantalla. Se borrarán las respuestas de este participante que todavía no enviaste. Lo que ya enviaste no se pierde.",
       si: "Sí, reiniciar", no: "No, seguir acá", peligro: true
     });
     if (!ok) return;
@@ -275,7 +277,7 @@
       opciones = ord.map((o) => ({ v: o.v, t: conTexto ? o.t.replace("ni en", "ni\u00A0en").replace("Completamente", "Comple\u00ADta\u00ADmente").replace(/(\S{4,})mente/g, "$1\u00ADmente") : String(o.v), aria: o.v + ", " + o.t }));   // guion suave antes de "mente" para cortar bien en celulares angostos
       if (!conTexto) {
         extremos = [ord[0].t, ord[ord.length - 1].t];
-        leyendaLista = h("ul", { class: "leyenda" }, ord.map((o) => h("li", null, h("strong", null, o.v), " = " + o.t)));
+        leyendaLista = h("ul", { class: "leyenda" }, q.leyendaTitulo && h("li", { class: "leyenda-titulo" }, q.leyendaTitulo), ord.map((o) => h("li", null, h("strong", null, o.v), " = " + o.t)));
       }
     };
     if (q.tipo === "escala") {   // valores de menor a mayor, con todas las palabras en una leyenda
@@ -348,12 +350,40 @@
       siguiente();
     } }, textoSiguiente);
     mostrar(h("h1", null, titulo), intro && h("p", { class: "intro-paso" }, intro), progreso("Paso " + (i + 1) + " de " + n, i + 1, n),
-      h("p", { class: "suave" }, "Para borrar una respuesta, toque de nuevo la opción elegida."),
+      h("p", { class: "suave" }, "Para borrar una respuesta, tocá de nuevo la opción elegida."),
       h("div", { class: "tarjeta" }, cuerpo),
       h("div", { class: "acciones" }, atras && h("button", { onclick: atras }, "Atrás"), btnSig));
   }
 
   // ---- flujo --------------------------------------------------------------------------
+  // Pide el número de grupo que fijó el guía en el panel. Si no hay señal queda vacío y la encuesta sigue igual.
+  async function pedirGrupo() {
+    if (!C.ENDPOINT) return;
+    try {
+      const ctrl = new AbortController(), t = setTimeout(() => ctrl.abort(), 8000);
+      const r = await fetch(C.ENDPOINT + "?accion=grupo", { signal: ctrl.signal });
+      clearTimeout(t);
+      const j = await r.json();
+      if (j && j.ok && j.grupo) { persona.grupo = j.grupo; persona.recorrido = Array.isArray(j.recorrido) ? j.recorrido : null; guardar(); }
+    } catch (e) { /* sin señal, sigue sin número de grupo */ }
+  }
+
+  // Si el guía cambió el recorrido del grupo en el panel, la lista de puntos se actualiza sola.
+  async function actualizarRecorrido() {
+    if (!C.ENDPOINT || !persona.grupo) return;
+    try {
+      const ctrl = new AbortController(), t = setTimeout(() => ctrl.abort(), 8000);
+      const r = await fetch(C.ENDPOINT + "?accion=recorrido&grupo=" + persona.grupo, { signal: ctrl.signal });
+      clearTimeout(t);
+      const j = await r.json();
+      const nuevo = j && j.ok && Array.isArray(j.recorrido) ? j.recorrido : null;
+      if (JSON.stringify(nuevo) !== JSON.stringify(persona.recorrido || null)) {
+        persona.recorrido = nuevo; guardar();
+        if (pantalla === "hub") pantallaInicioPunto();
+      }
+    } catch (e) { /* sin señal, queda lo que había */ }
+  }
+
   function pantallaConsentimiento() {
     pantalla = "consentimiento";
     parar();
@@ -370,6 +400,7 @@
       persona.consintio = true;
       persona.t = nuevoT(); persona.t.sesion_inicio = Date.now();
       guardar();
+      pedirGrupo();
       siguientePantalla();
     } }, "Comenzar");
     chk.addEventListener("change", () => { btn.disabled = !chk.checked; });
@@ -406,6 +437,8 @@
       C.PUNTOS.map((p) => h("option", { value: String(p.id) }, p.nombre + (hechos.includes(p.id) ? " (ya respondido)" : ""))));
     const err = h("div", { "aria-live": "polite" });
     const completos = C.PUNTOS.every((p) => hechos.includes(p.id));
+    const sigue = persona.recorrido ? persona.recorrido.find((id) => !hechos.includes(id)) : null;   // el próximo punto del recorrido de su grupo
+    actualizarRecorrido();
     const final = completos && !persona.comentario_enviado;   // la pregunta abierta se hace una sola vez, al terminar el paseo
     const ta = h("textarea", { id: "comentario", maxlength: 1000, rows: 5 });
     ta.value = persona.comentario_borrador || "";
@@ -418,20 +451,23 @@
     };
     mostrar(
       h("h1", null, completos ? "¡Muchas gracias!" : "Test de evaluación sonora"),
+      persona.grupo ? h("p", { class: "suave" }, "Grupo " + persona.grupo) : null,
       h("div", { class: "tarjeta" },
         h("ul", { class: "puntos" }, C.PUNTOS.map((p) => h("li", null, h("span", null, p.nombre), hechos.includes(p.id) ? h("span", { class: "hecho" }, "Respondido") : h("span", { class: "suave" }, "Pendiente"))))),
       completos ? (final
         ? h("div", { class: "tarjeta" }, h("label", { for: "comentario", style: "font-weight:700;display:block;margin-bottom:8px" },
             "Pensando en todo el paseo, ¿qué sonido fue el que más te gustó y cuál el que menos? ¿Qué sonido te gustaría que disminuyera o que se agregara? ¿Por qué?"),
             h("p", { class: "suave" }, "Es opcional. Si no querés escribir nada, tocá el botón igual."), ta)
-        : h("p", null, "Completaste los tres puntos. Podés cerrar esta página.")) : h("div", { class: "tarjeta" },
-        h("label", { for: "punto", style: "font-weight:600;display:block;margin-bottom:8px" }, "¿En qué punto de escucha está ahora?"), sel),
+        : h("p", null, "Completaste los tres puntos. Podés cerrar esta página.")) : sigue
+        ? h("div", { class: "tarjeta" }, h("p", { class: "suave" }, "Según el recorrido de tu grupo, ahora te toca"), h("h2", null, nombreDe(sigue)))
+        : h("div", { class: "tarjeta" },
+            h("label", { for: "punto", style: "font-weight:600;display:block;margin-bottom:8px" }, "¿En qué punto de escucha estás ahora?"), sel),
       err,
       h("div", { class: "acciones" },
         completos ? (final ? h("button", { class: "principal", onclick: enviarComentario }, "Enviar y terminar") : null) : h("button", { class: "principal", onclick: async () => {
-          const id = Number(sel.value);
-          if (!id) { err.replaceChildren(h("p", { class: "mensaje error" }, "Elija el punto de escucha en el que está.")); return; }
-          if (hechos.includes(id) && !(await preguntar({ mensaje: "Ya respondió este punto. ¿Quiere responderlo de nuevo?", si: "Sí, de nuevo", no: "No" }))) return;
+          const id = sigue || Number(sel.value);   // con recorrido asignado no se elige el lugar
+          if (!id) { err.replaceChildren(h("p", { class: "mensaje error" }, "Elegí el punto de escucha en el que estás.")); return; }
+          if (hechos.includes(id) && !(await preguntar({ mensaje: "Ya respondiste este punto. ¿Querés responderlo de nuevo?", si: "Sí, de nuevo", no: "No" }))) return;
           borrador = { fase: "escucha", punto: id, paso: 0, resp: {}, orden: L.barajar(Q.ATRIBUTOS.map((a) => a.id), rng), inicio: null, escucha_hasta: null, t: nuevoT() };
           guardar(); pantallaEscucha();
         } }, "Comenzar")));
@@ -525,11 +561,11 @@
     parar();
     // Todas las claves, siempre en el orden de las preguntas, con vacío donde no se contestó.
     const completo = (claves, vals) => { const o = {}; for (const k of claves) o[k] = vals[k] == null ? null : vals[k]; return o; };
-    const parteB = Object.assign(completo(Q.claves(Q.parteB), borrador.resp), camposTiempoB());
+    const parteB = Object.assign({ orden_en_recorrido: persona.puntos_hechos.length + 1 }, completo(Q.claves(Q.parteB), borrador.resp), camposTiempoB());   // 1, 2 o 3 según el lugar que ocupa el punto en el recorrido de la persona
     const envio = L.construirEnvio({
       envio_id: L.nuevoEnvioId(rng), version: VERSION, codigo: persona.codigo, punto: borrador.punto,
       consentimiento: !persona.consentimiento_enviado,
-      parteA: persona.parteA_enviada ? null : Object.assign(completo(Q.claves(Q.parteA), persona.parteA), camposTiempoA()),
+      parteA: persona.parteA_enviada ? null : Object.assign({ grupo: persona.grupo || null, recorrido: persona.recorrido ? persona.recorrido.map(letraDe).join("") : null }, completo(Q.claves(Q.parteA), persona.parteA), camposTiempoA()),
       inicio: borrador.inicio, fin: new Date().toISOString(), orden: borrador.orden, parteB
     });
     persona.consentimiento_enviado = true;

@@ -7,6 +7,11 @@
 //                     participante aceptó (no tiene ningún dato que identifique a la persona)
 //
 // Si cambia el TOKEN hay que cambiarlo igual en config.js.
+//
+// Panel de administración (admin.html). Usa una clave propia, que NO está en el repositorio. Se define en
+// Configuración del proyecto, Propiedades del script, con el nombre ADMIN_CLAVE. El número de grupo
+// que se le asigna a quien acepta se guarda en la propiedad GRUPO_ACTUAL y se cambia desde el panel.
+// El recorrido de cada grupo (el orden de los tres puntos) se guarda en RECORRIDOS, como {"1":[3,2,1], ...}.
 const TOKEN = "1e93ae6057cfcaab024e1237";
 
 const HOJA_RESPUESTAS = "respuestas";
@@ -14,15 +19,24 @@ const HOJA_PARTICIPANTES = "participantes";
 const HOJA_CONSENTIMIENTOS = "consentimientos";
 const HOJA_COMENTARIOS = "comentarios";
 
-function doGet() {
+function doGet(e) {
+  if (e && e.parameter && e.parameter.accion === "grupo") {
+    const g = props().getProperty("GRUPO_ACTUAL");
+    return salida({ ok: true, grupo: g ? Number(g) : null, recorrido: g ? (recorridos()[g] || null) : null });
+  }
+  if (e && e.parameter && e.parameter.accion === "recorrido") {
+    return salida({ ok: true, recorrido: recorridos()[e.parameter.grupo] || null });
+  }
   return salida({ ok: true, estado: "activo" });
 }
 
 function doPost(e) {
+  let d;
+  try { d = JSON.parse(e.postData.contents); } catch (err) { return salida({ ok: false, error: String(err) }); }
+  if (d.accion) return admin(d);   // el panel usa su propia clave y no ocupa el candado de los envíos
   const lock = LockService.getScriptLock();
   try {
     lock.waitLock(25000);
-    const d = JSON.parse(e.postData.contents);
     if (d.token !== TOKEN) return salida({ ok: false, error: "token" });
     if (!d.envio_id || !d.codigo) return salida({ ok: false, error: "faltan_datos" });
 
@@ -53,6 +67,139 @@ function doPost(e) {
   } finally {
     try { lock.releaseLock(); } catch (_) { /* ya liberado */ }
   }
+}
+
+function props() {
+  return PropertiesService.getScriptProperties();
+}
+
+function recorridos() {
+  try { return JSON.parse(props().getProperty("RECORRIDOS") || "{}"); } catch (e) { return {}; }
+}
+
+// ---- panel de administración ---------------------------------------------------------------------
+function admin(d) {
+  const clave = props().getProperty("ADMIN_CLAVE");
+  if (!clave || d.clave !== clave) {
+    Utilities.sleep(2000);   // frena a quien pruebe claves una tras otra
+    return salida({ ok: false, error: "clave" });
+  }
+  if (d.accion === "fijar_grupo") {
+    const n = Math.round(Number(d.grupo));
+    if (!(n >= 1 && n <= 99)) return salida({ ok: false, error: "grupo" });
+    props().setProperty("GRUPO_ACTUAL", String(n));
+    return salida({ ok: true, grupo: n });
+  }
+  if (d.accion === "fijar_recorrido") {
+    const n = Math.round(Number(d.grupo)), r = d.recorrido;
+    const valido = Array.isArray(r) && r.length === 3 && r.every(function (x, i) { return x >= 1 && x <= 3 && r.indexOf(x) === i; });
+    if (!(n >= 1 && n <= 99) || (r !== null && !valido)) return salida({ ok: false, error: "recorrido" });
+    const todos = recorridos();
+    if (r === null) delete todos[n]; else todos[n] = r;
+    props().setProperty("RECORRIDOS", JSON.stringify(todos));
+    return salida({ ok: true, grupo: n, recorrido: r });
+  }
+  if (d.accion === "panel") return salida(Object.assign({ ok: true }, panel(d.version)));
+  return salida({ ok: false, error: "accion" });
+}
+
+function leerHoja(nombre) {
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(nombre);
+  if (!sh || sh.getLastRow() < 2) return [];
+  const v = sh.getRange(1, 1, sh.getLastRow(), sh.getLastColumn()).getValues();
+  return v.slice(1).map(function (f) {
+    const o = {};
+    v[0].forEach(function (c, i) { o[c] = f[i]; });
+    return o;
+  });
+}
+
+function aMs(v) {
+  const t = v instanceof Date ? v.getTime() : Date.parse(v);
+  return isNaN(t) ? null : t;
+}
+
+// Junta en un grupo a quienes empezaron el mismo punto con menos de 3 minutos de diferencia.
+function gruposPorHora(respuestas, codigos) {
+  const padre = {};
+  codigos.forEach(function (c) { padre[c] = c; });
+  const raiz = function (c) { while (padre[c] !== c) { padre[c] = padre[padre[c]]; c = padre[c]; } return c; };
+  const porPunto = {};
+  respuestas.forEach(function (r) {
+    const t = aMs(r.inicio);
+    if (padre[r.codigo] === undefined || t === null) return;
+    (porPunto[r.punto] = porPunto[r.punto] || []).push({ c: r.codigo, t: t });
+  });
+  Object.keys(porPunto).forEach(function (p) {
+    const l = porPunto[p].sort(function (a, b) { return a.t - b.t; });
+    for (let i = 1; i < l.length; i++) if (l[i].t - l[i - 1].t <= 180000) padre[raiz(l[i].c)] = raiz(l[i - 1].c);
+  });
+  const grupos = {};
+  codigos.forEach(function (c) { (grupos[raiz(c)] = grupos[raiz(c)] || []).push(c); });
+  return Object.keys(grupos).map(function (k) { return grupos[k]; });
+}
+
+function panel(version) {
+  const coincide = function (r) { return !version || String(r.version) === String(version); };
+  const personas = leerHoja(HOJA_PARTICIPANTES).filter(coincide);
+  const respuestas = leerHoja(HOJA_RESPUESTAS).filter(coincide).filter(function (r) { return r.punto !== "" && r.punto != null; });
+  const comentarios = leerHoja(HOJA_COMENTARIOS).filter(coincide);
+
+  const puntosDe = {};   // código -> puntos que respondió
+  respuestas.forEach(function (r) {
+    const l = puntosDe[r.codigo] = puntosDe[r.codigo] || [];
+    if (l.indexOf(Number(r.punto)) < 0) l.push(Number(r.punto));
+  });
+  const porPunto = {};
+  Object.keys(puntosDe).forEach(function (c) { puntosDe[c].forEach(function (p) { porPunto[p] = (porPunto[p] || 0) + 1; }); });
+
+  const origen = { invitado: 0, en_el_lugar: 0, sin_dato: 0 };
+  personas.forEach(function (p) { origen[p.A10_origen === "invitado" || p.A10_origen === "en_el_lugar" ? p.A10_origen : "sin_dato"]++; });
+
+  // grupos con el número que se asignó al aceptar, y los demás reconstruidos por la hora de inicio
+  const asignados = {}, sinNumero = [];
+  personas.forEach(function (p) {
+    const n = Number(p.grupo);
+    if (p.grupo !== "" && p.grupo != null && n > 0) (asignados[n] = asignados[n] || []).push(p.codigo);
+    else sinNumero.push(p.codigo);
+  });
+  // orden real en que cada persona hizo los puntos, por la hora de inicio de cada uno
+  const ordenDe = {};
+  respuestas.slice().sort(function (a, b) { return (aMs(a.inicio) || 0) - (aMs(b.inicio) || 0); }).forEach(function (r) {
+    const l = ordenDe[r.codigo] = ordenDe[r.codigo] || [];
+    if (l.indexOf(Number(r.punto)) < 0) l.push(Number(r.punto));
+  });
+  const fichaDe = function (ruta) {
+    return function (c) {
+      const orden = ordenDe[c] || [];
+      return { codigo: c, puntos: (puntosDe[c] || []).sort(), orden: orden,
+               desvio: !!ruta && orden.some(function (p, i) { return p !== ruta[i]; }) };
+    };
+  };
+  const rutas = recorridos();
+  const grupos = Object.keys(asignados).sort(function (a, b) { return a - b; }).map(function (n) {
+    const ruta = rutas[n] || null;
+    return { numero: Number(n), nombre: "Grupo " + n, tipo: "asignado", recorrido: ruta, personas: asignados[n].map(fichaDe(ruta)) };
+  });
+  gruposPorHora(respuestas, sinNumero).forEach(function (l, i) {
+    grupos.push({ nombre: "Sin número " + (i + 1), tipo: "por hora", recorrido: null, personas: l.map(fichaDe(null)) });
+  });
+
+  const recientes = respuestas.slice(-15).reverse().map(function (r) {
+    return { codigo: r.codigo, punto: Number(r.punto), recibido: r.recibido, duracion_s: r.duracion_s };
+  });
+  const g = props().getProperty("GRUPO_ACTUAL");
+  return {
+    grupo_actual: g ? Number(g) : null,
+    resumen: {
+      personas: personas.length,
+      completaron_todo: Object.keys(puntosDe).filter(function (c) { return puntosDe[c].length >= 3; }).length,
+      respuestas: respuestas.length,
+      comentarios: comentarios.length,
+      origen: origen
+    },
+    por_punto: porPunto, grupos: grupos, recorridos: rutas, recientes: recientes
+  };
 }
 
 function salida(obj) {

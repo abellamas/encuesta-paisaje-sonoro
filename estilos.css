@@ -188,3 +188,4 @@ body[data-parte="B"] .barra > span { background: #2fb36b; }
 
 .banda-piloto { padding: 8px 16px; font-size: var(--fs-chico); font-weight: 600; text-align: center; background: #fff1d6; color: #7a4300; border-bottom: 1px solid #e8890c; }
 .foto-lugar { display: block; width: 100%; max-width: 100%; height: auto; margin-top: 12px; border-radius: var(--radio); }
+.leyenda-titulo { font-weight: 700; margin-bottom: 4px; }

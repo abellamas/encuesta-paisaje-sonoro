@@ -22,20 +22,23 @@ function crearHoja() {
 }
 
 function cargar() {
-  const hojas = {};
+  const hojas = {}, props = {};
   const ctx = {
     SpreadsheetApp: { getActiveSpreadsheet: () => ({
       getSheetByName: (n) => hojas[n] || null,
       insertSheet: (n) => (hojas[n] = crearHoja())
     }) },
     LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
+    PropertiesService: { getScriptProperties: () => ({ getProperty: (k) => (props[k] === undefined ? null : props[k]), setProperty: (k, v) => { props[k] = v; } }) },
+    Utilities: { sleep() {} },
     ContentService: { createTextOutput: (s) => ({ s, setMimeType() { return this; } }), MimeType: { JSON: "json" } },
     JSON, Object, String, Date
   };
   vm.createContext(ctx);
   vm.runInContext(fs.readFileSync(path.join(__dirname, "../apps-script/Code.gs"), "utf8"), ctx);
   const post = (d) => JSON.parse(ctx.doPost({ postData: { contents: JSON.stringify(d) } }).s);
-  return { hojas, post };
+  const get = (q) => JSON.parse(ctx.doGet({ parameter: q }).s);
+  return { hojas, post, get, props };
 }
 
 const TOKEN = /const TOKEN = "([^"]+)"/.exec(fs.readFileSync(path.join(__dirname, "../apps-script/Code.gs"), "utf8"))[1];
@@ -113,4 +116,87 @@ test("el comentario final va a su propia hoja y un reintento no lo duplica", () 
   assert.equal(f.length, 2, "encabezado y una sola fila");
   assert.equal(f[1][f[0].indexOf("comentario")], "Pájaros; me molestó el colectivo");
   assert.equal(hojas.respuestas, undefined, "no toca las otras hojas");
+});
+
+test("el panel exige la clave y no devuelve nada sin ella", () => {
+  const { post, props } = cargar();
+  assert.equal(post({ accion: "panel", clave: "x" }).error, "clave", "sin clave configurada nadie entra");
+  props.ADMIN_CLAVE = "secreta";
+  assert.equal(post({ accion: "panel", clave: "otra" }).error, "clave");
+  assert.equal(post({ accion: "panel" }).error, "clave");
+  assert.equal(post({ accion: "fijar_grupo", clave: "otra", grupo: 4 }).error, "clave");
+  assert.equal(post({ accion: "panel", clave: "secreta" }).ok, true);
+});
+
+test("el grupo actual se fija desde el panel y la encuesta lo lee sin clave", () => {
+  const { post, get, props } = cargar();
+  props.ADMIN_CLAVE = "secreta";
+  assert.equal(get({ accion: "grupo" }).grupo, null, "al principio no hay grupo");
+  assert.equal(post({ accion: "fijar_grupo", clave: "secreta", grupo: 3 }).grupo, 3);
+  assert.equal(get({ accion: "grupo" }).grupo, 3);
+  assert.equal(post({ accion: "fijar_grupo", clave: "secreta", grupo: 0 }).error, "grupo");
+  assert.equal(post({ accion: "fijar_grupo", clave: "secreta", grupo: "x" }).error, "grupo");
+  assert.equal(get({}).estado, "activo");
+});
+
+test("el panel cuenta personas, arma los grupos y separa por versión", () => {
+  const { post, props } = cargar();
+  props.ADMIN_CLAVE = "secreta";
+  const envio = (codigo, punto, hora, extra, version) => post(Object.assign(base({
+    envio_id: codigo + "-" + punto, codigo, punto, version: version || "v2", consentimiento: punto === 1,
+    parteA: punto === 1 ? Object.assign({ A2_edad: 30 }, extra) : null,
+    parteB: { inicio: "2026-10-30T" + hora + ":00.000Z", duracion_s: 120 }
+  })));
+  envio("AAA111", 1, "15:00", { grupo: 1, A10_origen: "invitado" });
+  envio("BBB222", 1, "15:01", { grupo: 1, A10_origen: "invitado" });
+  envio("AAA111", 2, "15:06", {});
+  envio("CCC333", 1, "16:00", { A10_origen: "en_el_lugar" });      // sin número, empieza solo
+  envio("DDD444", 1, "16:02", {});                                   // sin número, junto con CCC333
+  envio("EEE555", 1, "17:00", { grupo: 2 }, "piloto");
+  const p = post({ accion: "panel", clave: "secreta" });
+  assert.equal(p.resumen.personas, 5, "cuenta los que ya tienen la Parte A, sin la versión piloto en la otra consulta");
+  const solo = post({ accion: "panel", clave: "secreta", version: "v2" });
+  assert.equal(solo.resumen.personas, 4);
+  assert.deepEqual(solo.resumen.origen, { invitado: 2, en_el_lugar: 1, sin_dato: 1 });
+  assert.equal(solo.por_punto["1"], 4);
+  assert.equal(solo.por_punto["2"], 1);
+  const g1 = solo.grupos.find((g) => g.nombre === "Grupo 1");
+  assert.deepEqual(g1.personas.map((x) => x.codigo).sort(), ["AAA111", "BBB222"]);
+  assert.deepEqual(g1.personas.find((x) => x.codigo === "AAA111").puntos, [1, 2]);
+  const auto = solo.grupos.filter((g) => g.tipo === "por hora");
+  assert.equal(auto.length, 1, "CCC333 y DDD444 empezaron con 2 minutos de diferencia");
+  assert.deepEqual(auto[0].personas.map((x) => x.codigo).sort(), ["CCC333", "DDD444"]);
+  assert.equal(solo.recientes.length, 5);
+  assert.ok(!JSON.stringify(p).includes("A2_edad"), "el panel no devuelve las respuestas");
+});
+
+test("el recorrido de cada grupo se fija desde el panel, la encuesta lo lee y el panel marca los desvíos", () => {
+  const { post, get, props } = cargar();
+  props.ADMIN_CLAVE = "secreta";
+  assert.equal(post({ accion: "fijar_recorrido", clave: "otra", grupo: 1, recorrido: [3, 2, 1] }).error, "clave");
+  assert.equal(post({ accion: "fijar_recorrido", clave: "secreta", grupo: 1, recorrido: [3, 3, 1] }).error, "recorrido", "no puede repetir puntos");
+  assert.equal(post({ accion: "fijar_recorrido", clave: "secreta", grupo: 1, recorrido: [3, 2] }).error, "recorrido");
+  assert.equal(post({ accion: "fijar_recorrido", clave: "secreta", grupo: 1, recorrido: [3, 2, 1] }).ok, true);
+  assert.equal(post({ accion: "fijar_grupo", clave: "secreta", grupo: 1 }).ok, true);
+  assert.deepEqual(get({ accion: "grupo" }).recorrido, [3, 2, 1]);
+  post({ accion: "fijar_grupo", clave: "secreta", grupo: 2 });
+  assert.equal(get({ accion: "grupo" }).recorrido, null, "el grupo 2 todavía no tiene recorrido");
+
+  const envio = (codigo, punto, hora, extra) => post(base({
+    envio_id: codigo + "-" + punto, codigo, punto, version: "v2", consentimiento: punto === 3 || codigo === "BBB222" && punto === 1,
+    parteA: extra, parteB: { inicio: "2026-10-30T" + hora + ":00.000Z", duracion_s: 100 }
+  }));
+  envio("AAA111", 3, "15:00", { grupo: 1 });   // le tocaba Mesitas primero, bien
+  envio("AAA111", 2, "15:06", null);           // y después Newbery, bien
+  envio("BBB222", 1, "15:00", { grupo: 1 });   // empezó por Calistenia, se equivocó
+  const p = post({ accion: "panel", clave: "secreta", version: "v2" });
+  assert.deepEqual(p.recorridos, { "1": [3, 2, 1] });
+  const g1 = p.grupos.find((x) => x.nombre === "Grupo 1");
+  assert.deepEqual(g1.recorrido, [3, 2, 1]);
+  const a = g1.personas.find((x) => x.codigo === "AAA111"), b = g1.personas.find((x) => x.codigo === "BBB222");
+  assert.deepEqual(a.orden, [3, 2]);
+  assert.equal(a.desvio, false, "va por el recorrido asignado, aunque no lo haya terminado");
+  assert.equal(b.desvio, true);
+  assert.equal(post({ accion: "fijar_recorrido", clave: "secreta", grupo: 1, recorrido: null }).ok, true);
+  assert.equal(post({ accion: "panel", clave: "secreta" }).grupos.find((x) => x.nombre === "Grupo 1").recorrido, null, "se puede quitar");
 });

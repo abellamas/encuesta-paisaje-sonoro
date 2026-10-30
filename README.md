@@ -72,3 +72,19 @@ node test/e2e.js        # abre Chrome con tamaño de celular y recorre toda la e
 ```
 
 La segunda necesita Chrome o Edge instalado y deja capturas de pantalla en `test/capturas/`.
+
+## Panel de administración
+
+`admin.html` (por ejemplo `https://abellamas.github.io/encuesta-paisaje-sonoro/admin.html`) muestra el avance de la
+encuesta y permite elegir el grupo actual y el recorrido de cada grupo. Pide una clave que no está en el repositorio.
+
+1. En Apps Script, Configuración del proyecto, Propiedades del script, agregar `ADMIN_CLAVE` con la clave elegida.
+2. Pegar el `apps-script/Code.gs` actual y publicar una versión nueva de la implementación web.
+3. Entrar al panel, elegir el número de grupo y el recorrido (A = Mesitas, B = Newbery, C = Calistenia).
+
+Quien acepta la encuesta recibe el grupo que esté vigente en ese momento. Si el grupo tiene recorrido, la persona no
+elige el lugar y ve cuál le toca. Si no tiene recorrido, elige a mano como siempre. Funciona igual en la encuesta
+normal y en el modo piloto (`?piloto=1`), y el panel separa los datos por versión.
+
+En la planilla quedan `grupo` y `recorrido` (por ejemplo `ABC`) en la hoja `participantes`, y `orden_en_recorrido`
+(1, 2 o 3) en la hoja `respuestas`.

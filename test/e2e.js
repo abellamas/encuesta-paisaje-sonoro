@@ -25,6 +25,7 @@ const servidor = http.createServer((req, res) => {
   if (url.pathname === "/api") {
     res.setHeader("Access-Control-Allow-Origin", "*");
     if (req.method === "OPTIONS") { res.writeHead(204); return res.end(); }
+    if (req.method === "GET") { res.setHeader("Content-Type", "application/json"); return res.end(JSON.stringify(url.searchParams.get("accion") === "recorrido" ? { ok: true, recorrido: url.searchParams.get("grupo") === "1" ? [3, 2, 1] : null } : { ok: true, grupo: 2, recorrido: null })); }   // el grupo que fijó el guía
     let cuerpo = "";
     req.on("data", (c) => (cuerpo += c));
     req.on("end", () => {
@@ -100,8 +101,9 @@ async function main() {
     return true;})()`);
   const elegirPunto = (id) => js(`(()=>{const s=document.getElementById('punto'); s.value='${id}'; s.dispatchEvent(new Event('change',{bubbles:true}));})()`);
   // Recorre la Parte A completa (3 pasos) o la Parte B completa (5 pasos) contestando todo.
-  const recorrer = async (pasos, ultimo) => {
+  const recorrer = async (pasos, ultimo, capturas) => {
     for (let i = 0; i < pasos; i++) {
+      if (capturas) await captura(capturas + (i + 1));
       await completar();
       assert.ok(!(await texto()).includes("sin responder"), "no debería haber avisos si está todo contestado");
       await boton(i < pasos - 1 ? "Siguiente" : ultimo);
@@ -135,17 +137,17 @@ async function main() {
   await elegir("¿Cuánto tardás", "Menos de 10 minutos caminando");
   assert.equal(await js("JSON.parse(localStorage.getItem('persona')).parteA.A1_distancia"), "menos_10");
   await js(`(()=>{const i=document.querySelector('input[type=number]'); i.value='35'; i.dispatchEvent(new Event('input',{bubbles:true}));})()`);
-  await elegir("¿Cuál es su género", "Femenino");
+  await elegir("¿Cuál es tu género", "Femenino");
   await boton("Siguiente");
   assert.ok((await js("document.querySelector('.modal').innerText")).includes("sin responder"), "debe avisar de lo que falta");
   await boton("Completar lo que falta");   // cierra el cuadro y se queda en el mismo paso
-  await recorrer(3, "Terminar esta parte");
+  await recorrer(3, "Terminar esta parte", "03-parteA-");
 
   // 3. elegir el punto en el desplegable
   await dormir(200);
   await captura("05-elegir-punto");
   await boton("Comenzar");
-  assert.ok((await texto()).includes("Elija el punto"));
+  assert.ok((await texto()).includes("Elegí el punto"));
   await elegirPunto(2);
   await boton("Comenzar");
   await dormir(200);
@@ -175,7 +177,7 @@ async function main() {
   assert.equal(await js("JSON.parse(localStorage.getItem('borrador')).orden.join('-')"), orden1, "el orden de los atributos no debe cambiar al recargar");
   await completar(); await boton("Siguiente");
   await captura("09-B3-B6");
-  await elegir("En general, ¿cómo describiría", "Bueno");
+  await elegir("En general, ¿cómo calificarías", "Bueno");
   await completar(); await boton("Siguiente");
   await js(`(()=>{const f=document.querySelectorAll('fieldset.fila')[0]; f.querySelectorAll('label.opcion')[5].querySelector('input').click();})()`);
   await completar();
@@ -224,20 +226,24 @@ async function main() {
 
   // 7. con todo contestado, ninguna respuesta puede faltar en lo que llega a la planilla
   const Q = (() => { const w = {}; new Function("window", fs.readFileSync(path.join(RAIZ, "cuestionario.js"), "utf8"))(w); return w.Cuestionario; })();
-  const claves = (pasos) => pasos.flatMap((p) => p.preguntas.flatMap((q) => (q.filas ? q.filas.map((f) => q.id + "_" + f.id) : [q.id])));
-  const faltanA = claves(Q.parteA).filter((k) => e.parteA[k] == null || e.parteA[k] === "");
+  const claves = Q.claves;   // incluye las columnas "_otro", que llegan siempre aunque estén vacías
+  const faltanA = claves(Q.parteA).filter((k) => !k.endsWith("_otro") && (e.parteA[k] == null || e.parteA[k] === ""));
   assert.deepEqual(faltanA, [], "Parte A: faltan respuestas " + faltanA);
   for (const r of recibidos) {
-    const faltanB = claves(Q.parteB).filter((k) => r.parteB[k] == null || r.parteB[k] === "");
+    const faltanB = claves(Q.parteB).filter((k) => !k.endsWith("_otro") && (r.parteB[k] == null || r.parteB[k] === ""));
     assert.deepEqual(faltanB, [], "Parte B del punto " + r.punto + ": faltan respuestas " + faltanB);
     assert.equal(r.parteB.orden_B2.split("-").length, 8);
     assert.ok(r.parteB.duracion_s !== "" && r.parteB.inicio && r.parteB.fin);
   }
   // las columnas llegan siempre completas y en orden ascendente, no en el orden en que se contestó
-  assert.deepEqual(Object.keys(e.parteA).filter((k) => !k.startsWith("t_")), claves(Q.parteA), "Parte A fuera de orden");
+  assert.deepEqual(Object.keys(e.parteA).filter((k) => !k.startsWith("t_") && k !== "grupo" && k !== "recorrido"), claves(Q.parteA), "Parte A fuera de orden");
+  assert.equal(e.parteB.orden_en_recorrido, 1, "primer punto del recorrido");
+  assert.equal(recibidos[1].parteB.orden_en_recorrido, 2, "segundo punto del recorrido");
+  assert.equal(e.parteA.grupo, 2, "el número de grupo viene del panel y se guarda con la Parte A");
+  assert.ok(["A3_genero_otro", "A5_problema_audicion_otro", "A6_riesgo_auditivo_otro"].every((k) => k in e.parteA), "las columnas _otro llegan siempre");
   assert.ok(Object.keys(e.parteA).some((k) => k === "t_A_total_s") && e.parteA.t_A_total_s >= 0, "faltan los tiempos de la Parte A");
   for (const r of recibidos) {
-    assert.deepEqual(Object.keys(r.parteB).filter((k) => !k.startsWith("t_")), ["inicio", "fin", "duracion_s", "orden_B2", ...claves(Q.parteB)], "Parte B fuera de orden");
+    assert.deepEqual(Object.keys(r.parteB).filter((k) => !k.startsWith("t_") && k !== "orden_en_recorrido"), ["inicio", "fin", "duracion_s", "orden_B2", ...claves(Q.parteB)], "Parte B fuera de orden");
     assert.ok("t_B_total_s" in r.parteB && "t_sesion_s" in r.parteB, "faltan los tiempos de la Parte B");
     assert.ok(r.parteB.orden_B2.split("-").every((x) => Q.ATRIBUTOS.some((a) => a.id === x)), "orden_B2 debe usar los nombres en español");
   }
@@ -250,7 +256,7 @@ async function main() {
   const antes = await texto();
   await clic("#btn-inicio"); await dormir(100);
   const aviso = await js("document.querySelector('.modal').innerText");
-  assert.ok(aviso.includes("Se reiniciará la encuesta") && aviso.includes("Lo que ya envió no se pierde"), "debe advertir qué pasa");
+  assert.ok(aviso.includes("Se reiniciará la encuesta") && aviso.includes("Lo que ya enviaste no se pierde"), "debe advertir qué pasa");
   assert.equal(await js("getComputedStyle(document.getElementById('dlg-si')).backgroundColor"), "rgb(164, 38, 44)", "el botón de confirmar es rojo");
   await clic("#dlg-no");
   assert.equal(await texto(), antes, "si cancela se queda donde estaba");
@@ -309,6 +315,21 @@ async function main() {
   await js(`localStorage.setItem('borrador', JSON.stringify({fase:'B', punto:1, paso:4, resp:{}, orden:${JSON.stringify(Q.ATRIBUTOS.map((a) => a.id))}, inicio:null, escucha_hasta:null}))`);
   await cargar();
   assert.ok((await texto()).includes("Paso 4 de 4"), "debe caer en el último paso que existe");
+
+  // 12. el recorrido del grupo. El hub muestra el punto que toca y no deja elegir otro
+  await cdp("Page.navigate", { url: "http://127.0.0.1:" + puerto + "/estilos.css" }); await dormir(400);   // sin la encuesta abierta, que seguiría guardando
+  await js(`localStorage.removeItem('borrador'); localStorage.setItem('persona', JSON.stringify({codigo:'ABC234',consintio:true,consentimiento_enviado:true,parteA:{},parteA_ok:true,parteA_enviada:true,paso_A:2,puntos_hechos:[3],grupo:1,recorrido:[3,2,1]}))`);
+  await cargar();
+  assert.ok((await texto()).includes("ahora te toca"), "dice qué punto toca");
+  assert.ok((await texto()).includes("Entrada Corrientes y Newbery"), "el segundo punto del recorrido 3, 2, 1");
+  assert.equal(await js("!!document.getElementById('punto')"), false, "no hay lista para elegir el lugar");
+  await boton("Comenzar"); await dormir(200);
+  assert.equal(await js("JSON.parse(localStorage.getItem('borrador')).punto"), 2, "empieza el punto que toca");
+  // si el guía quita el recorrido en el panel, vuelve la lista para elegir
+  await cdp("Page.navigate", { url: "http://127.0.0.1:" + puerto + "/estilos.css" }); await dormir(400);
+  await js(`localStorage.removeItem('borrador'); localStorage.setItem('persona', JSON.stringify({codigo:'ABC234',consintio:true,consentimiento_enviado:true,parteA:{},parteA_ok:true,parteA_enviada:true,paso_A:2,puntos_hechos:[3],grupo:5,recorrido:[3,2,1]}))`);
+  await cargar(); await dormir(600);
+  assert.equal(await js("!!document.getElementById('punto')"), true, "el panel quitó el recorrido y se vuelve a elegir a mano");
 
   assert.deepEqual(errores, [], "errores de JavaScript en la página");
   console.log("OK. Capturas en", CAPTURAS);

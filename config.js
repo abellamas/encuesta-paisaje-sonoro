@@ -12,8 +12,8 @@ window.CONFIG = {
   // "Punto 1, entrada principal". El id es lo que queda en la planilla.
   PUNTOS: [
     // foto y audio sólo se usan en el modo piloto (agregar ?piloto=1 a la dirección)
-    { id: 1, nombre: "Calistenia", foto: "piloto/fotos/calistenia.jpg", audio: "piloto/audio/calistenia.mp3" },
-    { id: 2, nombre: "Entrada Corrientes y Newbery", foto: "piloto/fotos/newbery.jpg", audio: "piloto/audio/newbery.mp3" },
-    { id: 3, nombre: "Mesitas", foto: "piloto/fotos/mesitas.jpg", audio: "piloto/audio/mesitas.mp3" }
+    { id: 1, nombre: "Calistenia", letra: "C", foto: "piloto/fotos/calistenia.jpg", audio: "piloto/audio/calistenia.mp3" },
+    { id: 2, nombre: "Entrada Corrientes y Newbery", letra: "B", foto: "piloto/fotos/newbery.jpg", audio: "piloto/audio/newbery.mp3" },
+    { id: 3, nombre: "Mesitas", letra: "A", foto: "piloto/fotos/mesitas.jpg", audio: "piloto/audio/mesitas.mp3" }
   ]
 };

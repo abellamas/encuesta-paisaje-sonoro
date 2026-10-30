@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Panel de la encuesta</title>
+  <style>
+    :root { --azul: #24639a; --texto: #2a2f36; --suave: #5c6670; --borde: #cfd6de; --fondo: #f2f4f6; --ok: #1d6b3a; --error: #a4262c; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--fondo); color: var(--texto); font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+    main { max-width: 760px; margin: 0 auto; padding: 16px; }
+    h1 { font-size: 22px; color: var(--azul); margin: 8px 0 12px; }
+    h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .04em; color: var(--suave); margin: 20px 0 8px; }
+    .tarjeta { background: #fff; border-radius: 8px; padding: 14px; box-shadow: 0 1px 2px rgba(0,0,0,.12); margin-bottom: 12px; }
+    input, button, select { font: inherit; padding: 9px 12px; border: 1.5px solid var(--borde); border-radius: 8px; background: #fff; color: inherit; }
+    button { cursor: pointer; border-color: var(--azul); color: var(--azul); }
+    button.principal { background: var(--azul); color: #fff; }
+    button:disabled { opacity: .5; cursor: default; }
+    .fila { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .barra { justify-content: space-between; margin-bottom: 8px; }
+    .suave { color: var(--suave); font-size: 14px; }
+    .error { color: var(--error); font-weight: 600; margin: 8px 0 0; }
+    .grande { font-size: 44px; font-weight: 700; color: var(--azul); line-height: 1; min-width: 70px; text-align: center; }
+    .datos { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+    .dato { background: #fff; border-radius: 8px; padding: 10px 12px; box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+    .dato b { display: block; font-size: 26px; color: var(--azul); }
+    .grupo h3 { margin: 0 0 6px; font-size: 17px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip { background: #eef3f8; border-radius: 999px; padding: 3px 10px; font-size: 14px; }
+    .chip small { color: var(--ok); font-weight: 600; margin-left: 4px; }
+    .chip.desvio { background: #fdecea; outline: 1.5px solid var(--error); }
+    .chip.desvio small { color: var(--error); }
+    .ruta { margin: 0 0 8px; font-size: 14px; }
+    .ruta b { color: var(--azul); }
+    td select { width: 100%; }
+    td:first-child { white-space: nowrap; }
+    tr.actual td { background: #eef3f8; font-weight: 600; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { text-align: left; padding: 5px 6px; border-bottom: 1px solid #e6eaee; }
+    .tabla { overflow-x: auto; }
+    [hidden] { display: none; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Panel de la encuesta</h1>
+
+  <form id="acceso" class="tarjeta">
+    <label for="clave" class="suave">Clave de administración</label>
+    <div class="fila" style="margin-top:6px">
+      <input id="clave" type="password" autocomplete="current-password" required style="flex:1;min-width:180px">
+      <button class="principal" type="submit">Entrar</button>
+    </div>
+    <p id="aviso-acceso" class="error" role="alert" hidden></p>
+  </form>
+
+  <section id="panel" hidden>
+    <div class="fila barra">
+      <span class="suave" id="actualizado">Actualizando…</span>
+      <span class="fila">
+        <label class="suave" for="version">Versión</label>
+        <select id="version"></select>
+        <button id="salir" type="button">Salir</button>
+      </span>
+    </div>
+
+    <h2>Grupo actual</h2>
+    <div class="tarjeta">
+      <p class="suave" style="margin-top:0">Es el número que se le muestra y se guarda a quien acepta desde este momento.</p>
+      <div class="fila">
+        <button id="menos" type="button" aria-label="Bajar el número de grupo">−</button>
+        <span class="grande" id="grupo-actual">–</span>
+        <button id="mas" type="button" aria-label="Subir el número de grupo">+</button>
+        <input id="grupo-nuevo" type="number" min="1" max="99" inputmode="numeric" placeholder="N.º" style="width:80px">
+        <button id="fijar" class="principal" type="button">Fijar</button>
+      </div>
+      <p id="aviso-grupo" class="error" role="alert" hidden></p>
+    </div>
+
+    <h2>Recorridos de los grupos</h2>
+    <div class="tarjeta tabla">
+      <p class="suave" style="margin-top:0">A = Mesitas, B = Newbery, C = Calistenia. El recorrido que elijas es el que ven los participantes de ese grupo, que ya no eligen el lugar.</p>
+      <table id="tabla-recorridos"></table>
+      <p id="aviso-recorrido" class="error" role="alert" hidden></p>
+    </div>
+
+    <h2>Avance</h2>
+    <div class="datos" id="datos"></div>
+
+    <h2>Por punto de escucha</h2>
+    <div class="datos" id="puntos"></div>
+
+    <h2>Grupos</h2>
+    <div id="grupos"></div>
+
+    <h2>Últimos envíos</h2>
+    <div class="tarjeta tabla"><table id="recientes"></table></div>
+  </section>
+</main>
+
+<script src="config.js"></script>
+<script>
+(function () {
+  "use strict";
+  const C = window.CONFIG;
+  const $ = (id) => document.getElementById(id);
+  const guardada = () => { try { return sessionStorage.getItem("clave_admin") || ""; } catch (e) { return ""; } };
+  let clave = guardada(), cargando = false, timer = null, grupoActual = null;
+
+  function el(tag, texto, clase) {
+    const e = document.createElement(tag);
+    if (texto != null) e.textContent = texto;      // siempre como texto, nunca como HTML
+    if (clase) e.className = clase;
+    return e;
+  }
+
+  async function pedir(cuerpo) {
+    const r = await fetch(C.ENDPOINT, { method: "POST", body: JSON.stringify(Object.assign({ clave }, cuerpo)) });
+    return r.json();
+  }
+
+  const letra = (id) => { const p = C.PUNTOS.find((x) => x.id === Number(id)); return p ? p.letra : "?"; };
+  const flecha = (ids) => ids.map((id) => letra(id)).join(" → ");
+  const largo = (ids) => ids.map((id) => nombrePunto(id)).join(" → ");
+  function permutaciones() {
+    const ids = C.PUNTOS.slice().sort((a, b) => a.letra < b.letra ? -1 : 1).map((p) => p.id), res = [];
+    const rec = (resto, acum) => { if (!resto.length) return res.push(acum); resto.forEach((x, i) => rec(resto.filter((_, j) => j !== i), acum.concat(x))); };
+    rec(ids, []);
+    return res;
+  }
+
+  function nombrePunto(id) { const p = C.PUNTOS.find((x) => x.id === Number(id)); return p ? p.nombre : "Punto " + id; }
+  function hora(v) { const d = new Date(v); return isNaN(d) ? "" : d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }); }
+
+  function dibujar(d) {
+    grupoActual = d.grupo_actual;
+    $("grupo-actual").textContent = d.grupo_actual == null ? "–" : d.grupo_actual;
+    const r = d.resumen, o = r.origen;
+    const datos = $("datos"); datos.replaceChildren();
+    [["Personas", r.personas], ["Completaron los 3 puntos", r.completaron_todo], ["Respuestas de puntos", r.respuestas], ["Comentarios finales", r.comentarios],
+     ["Invitadas con cita previa", o.invitado], ["Se sumaron en el lugar", o.en_el_lugar]].forEach(([t, n]) => {
+      const c = el("div", null, "dato"); c.append(el("b", n), el("span", t, "suave")); datos.append(c);
+    });
+    const puntos = $("puntos"); puntos.replaceChildren();
+    C.PUNTOS.forEach((p) => { const c = el("div", null, "dato"); c.append(el("b", d.por_punto[p.id] || 0), el("span", p.nombre, "suave")); puntos.append(c); });
+
+    dibujarRecorridos(d);
+    const grupos = $("grupos"); grupos.replaceChildren();
+    if (!d.grupos.length) grupos.append(el("p", "Todavía no hay grupos.", "suave"));
+    d.grupos.forEach((g) => {
+      const c = el("div", null, "tarjeta grupo");
+      c.append(el("h3", g.nombre + " (" + g.personas.length + (g.personas.length === 1 ? " persona" : " personas") + ")"));
+      if (g.tipo === "por hora") c.append(el("p", "Armado por la hora de inicio de cada punto, porque no tenían número.", "suave"));
+      if (g.recorrido) { const ru = el("p", "Recorrido asignado: ", "ruta"); ru.append(el("b", flecha(g.recorrido))); c.append(ru); }
+      const chips = el("div", null, "chips");
+      g.personas.forEach((p) => {
+        const chip = el("span", p.codigo, g.recorrido && p.desvio ? "chip desvio" : "chip");
+        const hechos = p.orden.length ? flecha(p.orden) : "sin puntos";
+        chip.append(el("small", g.recorrido && p.desvio ? hechos + " ⚠ no es el recorrido" : hechos));
+        chips.append(chip);
+      });
+      c.append(chips); grupos.append(c);
+    });
+
+    const t = $("recientes"); t.replaceChildren();
+    const cab = el("tr"); ["Hora", "Código", "Punto", "Duración"].forEach((x) => cab.append(el("th", x))); t.append(cab);
+    d.recientes.forEach((x) => {
+      const f = el("tr"); [hora(x.recibido), x.codigo, nombrePunto(x.punto), x.duracion_s === "" ? "" : x.duracion_s + " s"].forEach((v) => f.append(el("td", v))); t.append(f);
+    });
+    $("actualizado").textContent = "Actualizado " + new Date().toLocaleTimeString("es-AR");
+  }
+
+  async function actualizar() {
+    if (cargando || !clave) return;
+    cargando = true;
+    try {
+      const v = $("version").value;
+      const d = await pedir({ accion: "panel", version: v });
+      if (!d.ok) { if (d.error === "clave") return salir("La clave no es correcta."); throw new Error(d.error); }
+      $("acceso").hidden = true; $("panel").hidden = false;
+      try { sessionStorage.setItem("clave_admin", clave); } catch (e) { /* sin almacenamiento */ }
+      dibujar(d);
+    } catch (e) {
+      $("actualizado").textContent = "No se pudo actualizar. Reintentando…";
+    } finally { cargando = false; }
+  }
+
+  function salir(mensaje) {
+    clave = ""; try { sessionStorage.removeItem("clave_admin"); } catch (e) { /* nada */ }
+    clearInterval(timer); $("panel").hidden = true; $("acceso").hidden = false;
+    const a = $("aviso-acceso"); a.hidden = !mensaje; a.textContent = mensaje || "";
+  }
+
+  function dibujarRecorridos(d) {
+    const t = $("tabla-recorridos");
+    if (document.activeElement && t.contains(document.activeElement)) return;   // no redibuja mientras se elige un recorrido
+    t.replaceChildren();
+    const cab = el("tr"); ["Grupo", "Recorrido"].forEach((x) => cab.append(el("th", x))); t.append(cab);
+    const mayor = Math.max(6, d.grupo_actual || 0, ...d.grupos.map((g) => g.numero || 0), ...Object.keys(d.recorridos).map(Number));
+    for (let n = 1; n <= mayor; n++) {
+      const f = el("tr", null, n === d.grupo_actual ? "actual" : ""), sel = document.createElement("select");
+      sel.setAttribute("aria-label", "Recorrido del grupo " + n);
+      const vacio = el("option", "Sin recorrido (elige cada persona)"); vacio.value = ""; sel.append(vacio);
+      permutaciones().forEach((p) => { const o = el("option", flecha(p)); o.value = p.join(","); sel.append(o); });
+      sel.value = d.recorridos[n] ? d.recorridos[n].join(",") : "";
+      sel.addEventListener("change", () => fijarRecorrido(n, sel.value));
+      const c2 = el("td"); c2.append(sel);
+      f.append(el("td", "Grupo " + n + (n === d.grupo_actual ? " (actual)" : "")), c2); t.append(f);
+    }
+  }
+
+  async function fijarRecorrido(grupo, valor) {
+    const a = $("aviso-recorrido"); a.hidden = true;
+    try {
+      const d = await pedir({ accion: "fijar_recorrido", grupo, recorrido: valor ? valor.split(",").map(Number) : null });
+      if (!d.ok) throw new Error(d.error);
+      actualizar();
+    } catch (e) { a.textContent = "No se pudo guardar el recorrido. Probá de nuevo."; a.hidden = false; actualizar(); }
+  }
+
+  async function fijar(n) {
+    const a = $("aviso-grupo"); a.hidden = true;
+    n = Math.round(Number(n));
+    if (!(n >= 1 && n <= 99)) { a.textContent = "Elegí un número entre 1 y 99."; a.hidden = false; return; }
+    try {
+      const d = await pedir({ accion: "fijar_grupo", grupo: n });
+      if (!d.ok) throw new Error(d.error);
+      $("grupo-nuevo").value = ""; actualizar();
+    } catch (e) { a.textContent = "No se pudo cambiar el grupo. Probá de nuevo."; a.hidden = false; }
+  }
+
+  function empezar() {
+    clearInterval(timer);
+    actualizar(); timer = setInterval(actualizar, 15000);
+  }
+
+  const versiones = [["", "Todas"], ["piloto", "piloto"], ["dummy", "dummy"], [C.VERSION, C.VERSION]];
+  versiones.forEach(([v, t]) => { const o = el("option", t); o.value = v; $("version").append(o); });
+  $("version").value = C.VERSION;
+  $("version").addEventListener("change", actualizar);
+
+  $("acceso").addEventListener("submit", (e) => { e.preventDefault(); clave = $("clave").value; $("clave").value = ""; $("aviso-acceso").hidden = true; empezar(); });
+  $("salir").addEventListener("click", () => salir());
+  $("menos").addEventListener("click", () => fijar((grupoActual || 1) - 1));
+  $("mas").addEventListener("click", () => fijar((grupoActual || 0) + 1));
+  $("fijar").addEventListener("click", () => fijar($("grupo-nuevo").value));
+  if (!C.ENDPOINT) { const a = $("aviso-acceso"); a.hidden = false; a.textContent = "Falta la dirección del script en config.js."; }
+  if (clave) empezar();
+})();
+</script>
+</body>
+</html>
