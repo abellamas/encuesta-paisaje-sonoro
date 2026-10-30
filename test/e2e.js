@@ -124,20 +124,21 @@ async function main() {
   await captura("02-parteA-1");
   assert.equal(await js("getComputedStyle(document.querySelector('h1')).color"), "rgb(36, 99, 154)", "la Parte A va en azul");
   assert.equal(await js("document.body.dataset.parte"), "A");
-  await elegir("¿Vive a diez minutos", "Sí");
+  await elegir("¿Cuánto tardás", "Menos de 10 minutos");
   // tocar de nuevo la opción elegida la borra, de la pantalla y de lo guardado
-  await elegir("¿Vive a diez minutos", "Sí");
+  await elegir("¿Cuánto tardás", "Menos de 10 minutos");
   assert.equal(await js("document.querySelectorAll('#app input[type=radio]:checked').length"), 0, "debe quedar sin elegir");
-  assert.equal(await js("JSON.parse(localStorage.getItem('persona')).parteA.A1_vive_cerca"), null, "también se borra lo guardado");
-  await elegir("¿Vive a diez minutos", "No");
-  assert.equal(await js("JSON.parse(localStorage.getItem('persona')).parteA.A1_vive_cerca"), "no");
-  await elegir("¿Vive a diez minutos", "No");
-  await elegir("¿Vive a diez minutos", "Sí");
-  assert.equal(await js("JSON.parse(localStorage.getItem('persona')).parteA.A1_vive_cerca"), "si");
+  assert.equal(await js("JSON.parse(localStorage.getItem('persona')).parteA.A1_distancia"), null, "también se borra lo guardado");
+  await elegir("¿Cuánto tardás", "Entre 10 y 30");
+  assert.equal(await js("JSON.parse(localStorage.getItem('persona')).parteA.A1_distancia"), "10_30");
+  await elegir("¿Cuánto tardás", "Entre 10 y 30");
+  await elegir("¿Cuánto tardás", "Menos de 10 minutos");
+  assert.equal(await js("JSON.parse(localStorage.getItem('persona')).parteA.A1_distancia"), "menos_10");
   await js(`(()=>{const i=document.querySelector('input[type=number]'); i.value='35'; i.dispatchEvent(new Event('input',{bubbles:true}));})()`);
   await elegir("¿Cuál es su género", "Femenino");
   await boton("Siguiente");
   assert.ok((await texto()).includes("sin responder"), "debe avisar de lo que falta");
+  await boton("Completar lo que falta");   // cierra el cuadro y se queda en el mismo paso
   await recorrer(3, "Terminar esta parte");
 
   // 3. elegir el punto en el desplegable
@@ -153,7 +154,8 @@ async function main() {
   await boton("Comenzar el minuto de escucha");
   await dormir(3700);
   assert.ok((await texto()).includes("Listo"));
-  await boton("Continuar con las preguntas");
+  await dormir(2300);   // pasa solo a las preguntas
+  assert.equal(await js("document.body.dataset.parte"), "B");
 
   // 4. Parte B, con un cierre del navegador a mitad de camino
   await dormir(200);
@@ -201,7 +203,7 @@ async function main() {
   assert.equal(e.punto, 2);
   assert.equal(e.consentimiento, true);
   assert.equal(e.parteA.A2_edad, 35);
-  assert.equal(e.parteA.A1_vive_cerca, "si");
+  assert.equal(e.parteA.A1_distancia, "menos_10");
   assert.equal(e.parteB.orden_B2, orden1);
   assert.equal(e.parteB.B2_agradable, 5);
   assert.equal(e.parteB.B1_naturales, 4);
@@ -214,7 +216,8 @@ async function main() {
   await dormir(200);
   assert.ok((await texto()).includes("Respondido"), "debe marcar el punto hecho");
   await elegirPunto(3);
-  await boton("Comenzar"); await boton("Pasar directo");
+  await boton("Comenzar"); await boton("Comenzar el minuto de escucha");
+  await dormir(5700);   // termina la cuenta y pasa sola a las preguntas
   await recorrer(5, "Enviar respuestas");
   await dormir(1000);
   assert.equal(recibidos.length, 2);
@@ -264,7 +267,7 @@ async function main() {
   // y a mitad de la Parte A
   await clic("#acepto"); await clic("button.principal"); await dormir(200);
   assert.ok((await js("document.querySelector('.cabecera img').getBoundingClientRect().height")) < 60, "el logo vuelve a su tamaño normal");
-  await elegir("¿Vive a diez minutos", "Sí");
+  await elegir("¿Cuánto tardás", "Menos de 10 minutos");
   await clic("#btn-inicio"); await clic("#dlg-si"); await dormir(200);
   assert.ok((await texto()).includes("Acepto participar"));
   assert.deepEqual(await js("JSON.parse(localStorage.getItem('persona')).parteA"), {}, "se borra la Parte A no enviada");

@@ -22,25 +22,35 @@ window.Cuestionario = (function () {
   const SI_NO_NS = [{ v: "si", t: "Sí" }, { v: "no", t: "No" }, { v: "no_se", t: "No sé" }];
 
   const parteA = [
-    { id: "pa1", preguntas: [
-      { id: "A1_vive_cerca", tipo: "opcion", texto: "¿Vive a diez minutos o menos caminando de este parque?", opciones: SI_NO },
-      { id: "A2_edad", tipo: "numero", texto: "¿Cuál es su edad? (mayor de 18 años)", min: 18, max: 110, unidad: "años" },
+    { id: "pa1", titulo: "Parte A. Datos personales", preguntas: [
+      { id: "A2_edad", tipo: "numero", texto: "¿Cuál es su edad?", min: 1, max: 110, unidad: "años" },
       { id: "A3_genero", tipo: "opcion", texto: "¿Cuál es su género?", opciones: [
         { v: "femenino", t: "Femenino" }, { v: "masculino", t: "Masculino" },
-        { v: "otro", t: "Otro" }, { v: "no_responde", t: "Prefiero no responder" }] },
-      { id: "A4_estudios", tipo: "opcion", texto: "¿Cuál es el nivel de estudios más alto que alcanzó?", opciones: [
-        { v: "primario", t: "Primario" }, { v: "secundario", t: "Secundario" },
-        { v: "terciario_universitario", t: "Terciario o universitario" }, { v: "posgrado", t: "Posgrado" }] }
-    ] },
-    { id: "pa2", preguntas: [
-      { id: "A5_audicion_normal", tipo: "opcion", texto: "¿Se considera una persona con audición normal?", opciones: SI_NO_NS },
-      { id: "A6_riesgo_auditivo", tipo: "opcion", texto: "¿Realiza de forma habitual actividades que usted considera riesgosas para su audición?", opciones: SI_NO_NS },
+        { v: "otro", t: "Otro", escribir: "¿Cómo te autopercibís?" }] },
+      { id: "A4_estudios", tipo: "opcion", texto: "¿Cuál es su nivel de estudios?", opciones: [
+        { v: "primario_incompleto", t: "Primario incompleto" }, { v: "primario_completo", t: "Primario completo" },
+        { v: "secundario_incompleto", t: "Secundario incompleto (o en curso)" }, { v: "secundario_completo", t: "Secundario completo" },
+        { v: "terciario_universitario_incompleto", t: "Terciario o universitario incompleto (o en curso)" },
+        { v: "terciario_universitario_completo", t: "Terciario o universitario completo" },
+        { v: "posgrado", t: "Posgrado/Maestría" }] },
       { id: "A7_formacion_acustica", tipo: "opcion", texto: "¿Tiene formación o trabaja en acústica, ruido ambiental o planificación urbana?", opciones: SI_NO },
+      { id: "A1_distancia", tipo: "opcion", texto: "¿Cuánto tardás en llegar a este parque desde donde vivís?", opciones: [
+        { v: "menos_10", t: "Menos de 10 minutos caminando" }, { v: "10_30", t: "Entre 10 y 30 minutos" },
+        { v: "mas_30_transporte", t: "Más de 30 minutos en transporte" },
+        { v: "de_paso", t: "No vivo en la zona, solo estoy de paso por hoy" }] },
       { id: "A8_frecuencia_visita", tipo: "opcion", texto: "¿Con qué frecuencia visita este parque?", opciones: [
-        { v: "ocasional", t: "Ocasionalmente" }, { v: "fines_de_semana", t: "Fines de semana" },
+        { v: "casi_nunca", t: "Casi nunca" }, { v: "ocasional", t: "Ocasionalmente" }, { v: "fines_de_semana", t: "Fines de semana" },
         { v: "varias_por_semana", t: "Varias veces por semana" }, { v: "todos_los_dias", t: "Todos los días" }] }
     ] },
-    { id: "pa3", preguntas: [
+    { id: "pa2", titulo: "Parte A. Audición", preguntas: [
+      { id: "A5_problema_audicion", tipo: "opcion", texto: "¿Tenés algún problema de audición que conozcas?", opciones: [
+        { v: "si", t: "Sí", escribir: "¿Cuál?" }, { v: "no", t: "No" }, { v: "no_se", t: "No sé" }] },
+      { id: "A5b_exposicion_24h", tipo: "opcion", texto: "¿En las últimas 24 horas escuchaste sonidos muy fuertes? (por ejemplo, recitales, boliches, auriculares a todo volumen o maquinaria ruidosa)", opciones: SI_NO_NS },
+      { id: "A6_riesgo_auditivo", tipo: "opcion", texto: "¿Realiza de forma habitual actividades que usted considera riesgosas para su audición?", opciones: SI_NO_NS }
+    ] },
+    { id: "pa3", titulo: "Parte A. Índice de Bienestar OMS",
+      intro: "Estas cinco frases son de un cuestionario breve de la Organización Mundial de la Salud (OMS) sobre cómo te sentiste de ánimo durante las últimas dos semanas. No hay respuestas correctas ni incorrectas.",
+      preguntas: [
       { id: "A9_WHO5", tipo: "grilla", texto: "Durante las últimas dos semanas…",
         opciones: [
           { v: 5, t: "Todo el tiempo" }, { v: 4, t: "La mayor parte del tiempo" },

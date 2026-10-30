@@ -39,7 +39,23 @@
   }
   let alSalir = null;          // limpieza de la pantalla que se deja (por ejemplo el cronómetro)
   let pantalla = "";           // consentimiento, parteA, hub, escucha, parteB o gracias
+  let marcandoFaltas = false;   // mientras es true, lo que falta responder se ve en naranja y se limpia al responder
+  function marcarFaltas() {
+    const unidades = [...document.querySelectorAll("#app .fila, #app .pregunta")].filter((el) => !el.querySelector(".fila"));
+    for (const el of unidades) {
+      const radios = el.querySelector('input[type="radio"]'), num = el.querySelector('input[type="number"]');
+      if (!radios && !num) continue;   // las de texto libre son opcionales de verdad
+      const falta = radios ? !el.querySelector('input[type="radio"]:checked') : num.value === "";
+      el.classList.toggle("falta", falta);
+    }
+    for (const caja of document.querySelectorAll("#app .otro-caja")) {
+      caja.classList.toggle("falta", !caja.hidden && !caja.querySelector("input").value.trim());
+    }
+  }
+  ["change", "input", "click"].forEach((ev) => app.addEventListener(ev, () => { if (marcandoFaltas) setTimeout(marcarFaltas, 0); }));
+
   function mostrar(...nodos) {
+    marcandoFaltas = false;
     if (alSalir) { alSalir(); alSalir = null; }
     actualizarBotonInicio();
     app.replaceChildren(...nodos.flat(Infinity).filter(Boolean));
@@ -56,16 +72,16 @@
         if (previo && previo.focus) previo.focus();
         resolve(v);
       };
-      const tecla = (e) => { if (e.key === "Escape") cerrar(false); };
+      const tecla = (e) => { if (e.key === "Escape") cerrar(!!opc.escapeSi); };
       const bNo = h("button", { type: "button", id: "dlg-no", onclick: () => cerrar(false) }, opc.no || "No");
       const bSi = h("button", { type: "button", id: "dlg-si", class: opc.peligro ? "peligro" : "principal", onclick: () => cerrar(true) }, opc.si || "Sí");
       const fondo = h("div", { class: "modal-fondo" },
-        h("div", { class: "modal", role: "alertdialog", "aria-modal": "true", "aria-labelledby": "dlg-tit", "aria-describedby": "dlg-msg" },
+        h("div", { class: opc.suave ? "modal suave" : "modal", role: "alertdialog", "aria-modal": "true", "aria-labelledby": "dlg-tit", "aria-describedby": "dlg-msg" },
           opc.titulo && h("h2", { id: "dlg-tit" }, opc.titulo),
           h("p", { id: "dlg-msg" }, opc.mensaje), h("div", { class: "acciones" }, bNo, bSi)));
       document.body.append(fondo);
       document.addEventListener("keydown", tecla);
-      bNo.focus();
+      (opc.focoSi ? bSi : bNo).focus();
     });
   }
   let _uid = 0;
@@ -148,15 +164,37 @@
 
     if (q.tipo === "opcion") {
       const name = uid();
+      const conTexto = q.opciones.find((o) => o.escribir);
+      const idOtro = uid();
+      const otro = conTexto && h("input", { id: idOtro, type: "text", maxlength: 100, class: "otro", placeholder: "Escribilo acá" });
+      const caja = otro && h("div", { class: "otro-caja" }, h("label", { for: idOtro }, conTexto.escribir), otro);
+      if (otro) {
+        otro.value = vals[q.id + "_otro"] || "";
+        caja.hidden = vals[q.id] !== conTexto.v;
+        otro.addEventListener("input", () => set(q.id + "_otro", otro.value));
+      }
+      const elegir = (v) => {
+        set(q.id, v);
+        if (otro) { caja.hidden = v !== conTexto.v; if (caja.hidden) { otro.value = ""; delete vals[q.id + "_otro"]; cambio(); } }
+      };
       return h("fieldset", { class: "pregunta" }, h("legend", null, q.texto), q.ayuda && h("p", { class: "ayuda" }, q.ayuda),
-        h("div", { class: "opciones" }, q.opciones.map((o) => radio(name, o, vals[q.id], (v) => set(q.id, v)))));
+        h("div", { class: "opciones" }, q.opciones.map((o) => radio(name, o, vals[q.id], elegir))), caja);
     }
     if (q.tipo === "numero") {
       const id = uid();
       const inp = h("input", { id, type: "number", inputmode: "numeric", min: q.min, max: q.max, value: vals[q.id] != null ? vals[q.id] : "" });
-      inp.addEventListener("input", () => set(q.id, inp.value === "" ? null : Number(inp.value)));
+      const err = h("p", { class: "mensaje error", role: "alert", hidden: true });
+      inp.addEventListener("input", () => {
+        const raw = inp.value, num = Number(raw);
+        // solo números enteros dentro del rango; type=number deja pasar letras como la "e" o signos
+        const mal = inp.validity.badInput || (raw !== "" && (!/^\d+$/.test(raw) || num < q.min || num > q.max));
+        inp.setAttribute("aria-invalid", mal ? "true" : "false");
+        err.hidden = !mal;
+        err.textContent = mal ? "Escribí solo números enteros, entre " + q.min + " y " + q.max + "." : "";
+        set(q.id, raw === "" || mal ? null : num);
+      });
       return h("div", { class: "pregunta" }, h("label", { for: id, style: "font-weight:600;display:block;margin-bottom:8px" }, q.texto),
-        h("div", { class: "con-unidad" }, inp, q.unidad && h("span", null, q.unidad)));
+        h("div", { class: "con-unidad" }, inp, q.unidad && h("span", null, q.unidad)), err);
     }
     if (q.tipo === "texto") {
       const id = uid();
@@ -202,39 +240,59 @@
     return n;
   }
 
+  // Cuántas veces quedó en blanco el campo "¿Cuál?" de una opción que lo pide.
+  function otrosVacios(preguntas, vals) {
+    let n = 0;
+    for (const q of preguntas) {
+      const o = q.opciones && q.opciones.find((x) => x.escribir);
+      if (o && vals[q.id] === o.v && !String(vals[q.id + "_otro"] || "").trim()) n++;
+    }
+    return n;
+  }
+
   // Un paso con sus preguntas y los botones. avanzar() recibe true si hay que seguir.
   function pantallaPaso(cfg) {
-    const { titulo, i, n, preguntas, vals, ordenAtributos, atras, siguiente, textoSiguiente } = cfg;
-    let advertido = false;
-    const msg = h("div", { "aria-live": "polite" });
-    // Si ya se avisó y la persona termina de responder, el aviso desaparece solo.
-    const cambio = () => {
-      cfg.cambio();
-      if (advertido && !sinResponder(preguntas, vals)) { msg.replaceChildren(); advertido = false; }
-    };
+    const { titulo, intro, i, n, preguntas, vals, ordenAtributos, atras, siguiente, textoSiguiente } = cfg;
+    const cambio = cfg.cambio;
     const cuerpo = preguntas.map((q) => render(q, vals, cambio, ordenAtributos));
-    const btnSig = h("button", { class: "principal", onclick: () => {
-      const faltan = sinResponder(preguntas, vals);
-      if (faltan && !advertido) {
-        advertido = true;
-        msg.replaceChildren(h("p", { class: "mensaje aviso-suave" },
-          (faltan === 1 ? "Queda 1 pregunta sin responder. " : "Quedan " + faltan + " preguntas sin responder. ") +
-          "Puede continuar igual, todas son opcionales. Toque «" + textoSiguiente + "» otra vez para seguir."));
-        return;
+    const btnSig = h("button", { class: "principal", onclick: async () => {
+      const malo = document.querySelector('#app input[aria-invalid="true"]');
+      if (malo) { malo.focus(); return; }   // un número mal escrito frena el avance hasta corregirlo
+      const faltan = sinResponder(preguntas, vals), vacios = otrosVacios(preguntas, vals);
+      if (faltan || vacios) {
+        const partes = [];
+        if (faltan) partes.push(faltan === 1 ? "Queda 1 pregunta sin responder." : "Quedan " + faltan + " preguntas sin responder.");
+        if (vacios) partes.push("Falta escribir el detalle.");
+        const completar = await preguntar({
+          titulo: "Falta responder algo", suave: true, focoSi: true, escapeSi: true,
+          mensaje: partes.join(" ") + " Podés seguir igual.",
+          si: "Completar lo que falta", no: "Seguir igual"
+        });
+        if (completar) {
+          marcandoFaltas = true; marcarFaltas();
+          const primera = document.querySelector("#app .falta");
+          if (primera) primera.scrollIntoView({ behavior: "smooth", block: "center" });
+          return;
+        }
       }
       siguiente();
     } }, textoSiguiente);
-    mostrar(h("h1", null, titulo), progreso("Paso " + (i + 1) + " de " + n, i + 1, n),
+    mostrar(h("h1", null, titulo), intro && h("p", { class: "intro-paso" }, intro), progreso("Paso " + (i + 1) + " de " + n, i + 1, n),
       h("p", { class: "suave" }, "Para borrar una respuesta, toque de nuevo la opción elegida."),
-      h("div", { class: "tarjeta" }, cuerpo), msg,
+      h("div", { class: "tarjeta" }, cuerpo),
       h("div", { class: "acciones" }, atras && h("button", { onclick: atras }, "Atrás"), btnSig));
   }
 
   // ---- flujo --------------------------------------------------------------------------
   function pantallaConsentimiento() {
     pantalla = "consentimiento";
-    const intro = h("p", null, "Esta encuesta forma parte de una investigación de la Universidad Nacional de Tres de Febrero, de la carrera de Ingeniería de Sonido, sobre cómo las personas perciben los sonidos en los parques. Es ", h("strong", null, "anónima y voluntaria"), ", puede dejar de responder cuando quiera y ", h("strong", null, "todas las preguntas son opcionales"), ". Las respuestas se usarán sólo con fines de investigación y se guardarán sin su nombre.");
-    const duracion = h("p", { class: "suave" }, "Duración aproximada, entre 15 y 20 minutos en total, repartidos en tres puntos del parque.");
+    const intro = h("p", null, "Esta encuesta es parte de mi investigación para mi Tesis de la carrera de Ingeniería de Sonido por la Universidad Nacional de Tres de Febrero (UNTREF).");
+    const items = h("ul", { class: "lista" },
+      h("li", null, "La encuesta es ", h("strong", null, "anónima, voluntaria"), " y ", h("strong", null, "todas las preguntas son opcionales"), "."),
+      h("li", null, "Al inicio, por única vez, se te preguntarán ", h("strong", null, "datos personales y de bienestar"), ". Es importante tu sinceridad, recordá que es anónima."),
+      h("li", null, "Vas a recorrer ", h("strong", null, "3 puntos de escucha"), " dentro del parque y en cada uno vas a escuchar durante ", h("strong", null, "1 minuto"), " sin realizar nada más que la escucha. Luego vas a proceder a completar una parte de la encuesta. Esto se repetirá en cada punto que transitemos."),
+      h("li", null, "Es necesario que ", h("strong", null, "permanezcas en silencio"), " una vez iniciado el paseo, hasta recorrer y evaluar los 3 puntos. Si precisás ayuda, podés hablar con uno de mis compañeros."));
+    const duracion = h("p", { class: "suave" }, "Duración aproximada, 15 minutos.");
     const chk = h("input", { type: "checkbox", id: "acepto" });
     const btn = h("button", { class: "principal", disabled: true, onclick: () => {
       persona.codigo = L.nuevoCodigo(rng);   // interno: une las respuestas de la misma persona, nadie lo ve
@@ -244,8 +302,8 @@
     } }, "Comenzar");
     chk.addEventListener("change", () => { btn.disabled = !chk.checked; });
     mostrar(
-      h("h1", null, "Paisaje sonoro en parques urbanos"),
-      h("div", { class: "tarjeta" }, intro,
+      h("h1", null, "Evaluación del ambiente sonoro del Parque Los Andes"),
+      h("div", { class: "tarjeta" }, h("p", null, "Queremos saber cómo percibís los sonidos de este parque."), intro, items,
         h("label", { class: "consent", for: "acepto" }, chk, h("span", null, "Acepto participar.")),
         duracion),
       h("div", { class: "acciones" }, btn));
@@ -256,7 +314,8 @@
     persona.paso_A = i; guardar();
     const pasos = Q.parteA;
     pantallaPaso({
-      titulo: "Parte A. Sobre usted", i, n: pasos.length, preguntas: pasos[i].preguntas, vals: persona.parteA,
+      titulo: pasos[i].titulo,
+      intro: pasos[i].intro, i, n: pasos.length, preguntas: pasos[i].preguntas, vals: persona.parteA,
       cambio: guardar,
       atras: i > 0 ? () => pasoA(i - 1) : null,
       textoSiguiente: i < pasos.length - 1 ? "Siguiente" : "Terminar esta parte",
@@ -273,7 +332,7 @@
     const err = h("div", { "aria-live": "polite" });
     const completos = C.PUNTOS.every((p) => hechos.includes(p.id));
     mostrar(
-      h("h1", null, completos ? "¡Muchas gracias!" : "Punto de escucha"),
+      h("h1", null, completos ? "¡Muchas gracias!" : "Test de evaluación sonora"),
       h("div", { class: "tarjeta" },
         h("ul", { class: "puntos" }, C.PUNTOS.map((p) => h("li", null, h("span", null, p.nombre), hechos.includes(p.id) ? h("span", { class: "hecho" }, "Respondido") : h("span", { class: "suave" }, "Pendiente"))))),
       completos ? h("p", null, "Completó los tres puntos. Puede cerrar esta página.") : h("div", { class: "tarjeta" },
@@ -291,10 +350,9 @@
 
   function pantallaEscucha() {
     pantalla = "escucha";
-    let intervalo = null, wake = null;
+    let intervalo = null, wake = null, pase = null;
     const reloj = h("div", { class: "reloj", role: "timer", "aria-live": "off" }, formato(C.SEGUNDOS_ESCUCHA * 1000));
     const btn = h("button", { class: "principal" }, "Comenzar el minuto de escucha");
-    const saltar = h("button", { class: "enlace", onclick: seguir }, "Pasar directo a las preguntas");
     function formato(ms) {
       const s = Math.max(0, Math.ceil(ms / 1000));
       return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
@@ -307,13 +365,12 @@
         if (navigator.vibrate) navigator.vibrate([250, 120, 250]);
         reloj.setAttribute("aria-live", "assertive");
         reloj.textContent = "Listo";
-        btn.textContent = "Continuar con las preguntas";
-        btn.disabled = false;
-        btn.onclick = seguir;
+        btn.textContent = "Pasando a las preguntas…";
+        pase = setTimeout(seguir, 2000);   // pasa solo a la encuesta
       }
     }
     function seguir() {
-      clearInterval(intervalo);
+      clearInterval(intervalo); clearTimeout(pase);
       if (wake) wake.release().catch(() => {});
       borrador.fase = "B"; borrador.paso = 0; borrador.inicio = new Date().toISOString(); guardar();
       pasoB(0);
@@ -328,10 +385,13 @@
     mostrar(
       h("h1", null, C.PUNTOS.find((p) => p.id === borrador.punto).nombre),
       h("div", { class: "tarjeta" },
-        h("p", null, "Escuche el ambiente sonoro durante un minuto, en silencio y sin caminar, usando todos los sentidos. Después responda las preguntas, sin apurarse."),
+        h("ul", { class: "lista" },
+          h("li", null, "Escuchá el ambiente sonoro durante un minuto, en silencio, sin hablar con los demás y sin caminar."),
+          h("li", null, "Orientá la cabeza igual que el guía."),
+          h("li", null, "Iniciá el temporizador cuando el guía lo indique.")),
         reloj),
-      h("div", { class: "acciones" }, btn), h("p", null, saltar));
-    alSalir = () => { clearInterval(intervalo); if (wake) wake.release().catch(() => {}); };
+      h("div", { class: "acciones" }, btn));
+    alSalir = () => { clearInterval(intervalo); clearTimeout(pase); if (wake) wake.release().catch(() => {}); };
     if (borrador.escucha_hasta) { empezar_continuar(); }
     function empezar_continuar() {   // se recargó la página con la cuenta en marcha
       btn.disabled = true; btn.textContent = "Escuchando…";
@@ -381,7 +441,7 @@
     mostrar(
       h("h1", null, "Respuestas registradas"),
       h("div", { class: "tarjeta" },
-        h("p", null, "Gracias. Respondió el ", C.PUNTOS.find((p) => p.id === punto).nombre.toLowerCase(), "."),
+        h("p", null, "Gracias. Respondiste «", C.PUNTOS.find((p) => p.id === punto).nombre, "»."),
         h("p", { id: "estado-envio", class: "mensaje ok", role: "status" }, textoEstadoEnvio())),
       h("div", { class: "acciones" }, h("button", { class: "principal", onclick: pantallaInicioPunto },
         faltan.length ? "Seguir con otro punto" : "Terminar")));

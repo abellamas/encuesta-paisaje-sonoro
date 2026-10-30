@@ -11,8 +11,8 @@ window.CONFIG = {
   // Opciones del desplegable de la Parte B. Se puede cambiar el nombre, por ejemplo
   // "Punto 1, entrada principal". El id es lo que queda en la planilla.
   PUNTOS: [
-    { id: 1, nombre: "Punto 1" },
-    { id: 2, nombre: "Punto 2" },
-    { id: 3, nombre: "Punto 3" }
+    { id: 1, nombre: "Calistenia" },
+    { id: 2, nombre: "Entrada Corrientes y Newbery" },
+    { id: 3, nombre: "Cerca juegos de niños" }
   ]
 };
