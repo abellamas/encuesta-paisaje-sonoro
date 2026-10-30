@@ -305,6 +305,11 @@ async function main() {
   assert.equal(p.version, "piloto");
   assert.ok(p.codigo.startsWith("PILOTO-"));
 
+  // 11. un avance guardado por una versión anterior (con más pasos) no rompe la página
+  await js(`localStorage.setItem('borrador', JSON.stringify({fase:'B', punto:1, paso:4, resp:{}, orden:${JSON.stringify(Q.ATRIBUTOS.map((a) => a.id))}, inicio:null, escucha_hasta:null}))`);
+  await cargar();
+  assert.ok((await texto()).includes("Paso 4 de 4"), "debe caer en el último paso que existe");
+
   assert.deepEqual(errores, [], "errores de JavaScript en la página");
   console.log("OK. Capturas en", CAPTURAS);
   chrome.kill(); servidor.close(); process.exit(0);

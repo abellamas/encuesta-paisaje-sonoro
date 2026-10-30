@@ -272,7 +272,6 @@
     const caben = (ord) => ord.every((o) => o.t.length <= 22 && Math.max(...o.t.split(" ").map((w) => w.length)) <= 14);
     const puntos = (ord, forzar) => {
       conTexto = forzar || (!q.lista && caben(ord));   // q.lista fuerza la lista arriba
-      if (forzar) leyenda = "Escala de «" + ord[0].t + "» a «" + ord[ord.length - 1].t + "».";   // aviso arriba para leer bien las filas
       opciones = ord.map((o) => ({ v: o.v, t: conTexto ? o.t.replace("ni en", "ni\u00A0en").replace("Completamente", "Comple\u00ADta\u00ADmente").replace(/(\S{4,})mente/g, "$1\u00ADmente") : String(o.v), aria: o.v + ", " + o.t }));   // guion suave antes de "mente" para cortar bien en celulares angostos
       if (!conTexto) {
         extremos = [ord[0].t, ord[ord.length - 1].t];
@@ -384,6 +383,7 @@
 
   function pasoA(i) {
     pantalla = "parteA";
+    i = Math.max(0, Math.min(i, Q.parteA.length - 1));
     persona.paso_A = i; guardar();
     medir(asegurarT(persona), Q.parteA[i].id);
     const pasos = Q.parteA;
@@ -507,6 +507,7 @@
 
   function pasoB(i) {
     pantalla = "parteB";
+    i = Math.max(0, Math.min(i, Q.parteB.length - 1));   // un avance guardado con otra versión puede apuntar a un paso que ya no existe
     borrador.paso = i; guardar();
     medir(asegurarT(borrador), Q.parteB[i].id);
     const pasos = Q.parteB;

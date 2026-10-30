@@ -81,7 +81,7 @@ window.Cuestionario = (function () {
     ] },
     { id: "pb2", preguntas: [
       { id: "B2", tipo: "atributos",
-        texto: "Para cada una de las ocho escalas siguientes, ¿hasta qué punto está de acuerdo o en desacuerdo con que el ambiente sonoro actual es…?",
+        texto: "¿Qué tan de acuerdo estás con que este paisaje sonoro es…?",
         opciones: ACUERDO, filas: ATRIBUTOS }
     ] },
     { id: "pb3", preguntas: [
@@ -106,7 +106,7 @@ window.Cuestionario = (function () {
           { id: "b", t: "Oír este paisaje sonoro me concede un descanso de mi rutina diaria." },
           { id: "c", t: "Cuando oigo este paisaje sonoro me abstraigo de mis preocupaciones y miedos." },
           { id: "d", t: "Este paisaje sonoro es afín a mis inclinaciones, preferencias o intereses personales." },
-          { id: "e", t: "Este paisaje sonoro suena coherente." },
+          { id: "e", t: "Todos los sonidos que estoy oyendo parecen pertenecer al mismo paisaje sonoro." },   // ítem 16 de la PRSS en castellano, en lugar del 18
           { id: "f", t: "Este paisaje sonoro suena muy espacioso." }] }
     ] }
   ];
