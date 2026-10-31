@@ -145,6 +145,18 @@ function promedio(valores) {
   return { segundos: v.length ? Math.round(v.reduce(function (a, b) { return a + b; }, 0) / v.length) : null, n: v.length };
 }
 
+// Los ocho valores de cada respuesta completa, para dibujar el mapa de agrado y actividad en el panel.
+function atributosDe(respuestas, personas) {
+  const grupoDe = {};
+  personas.forEach(function (p) { if (p.grupo !== "" && p.grupo != null) grupoDe[p.codigo] = Number(p.grupo); });
+  const filas = [];
+  respuestas.forEach(function (r) {
+    const v = ATRIBUTOS_ID.map(function (a) { return r["B2_" + a] === "" || r["B2_" + a] == null ? NaN : Number(r["B2_" + a]); });
+    if (v.every(function (x) { return x >= 1 && x <= 5; })) filas.push({ codigo: r.codigo, punto: Number(r.punto), grupo: grupoDe[r.codigo] || null, valores: v });
+  });
+  return filas;
+}
+
 function tiemposPromedio(personas, respuestas, puntosDe) {
   const ultimaPorPunto = {};   // código -> punto -> segundos de la Parte B (la última respuesta de ese punto)
   respuestas.forEach(function (r) {
@@ -166,6 +178,9 @@ function tiemposPromedio(personas, respuestas, puntosDe) {
     recorrido_completo: promedio(completo)
   };
 }
+
+// Los ocho atributos en el orden de la planilla (el mismo de ATRIBUTOS en cuestionario.js).
+const ATRIBUTOS_ID = ["agradable", "estimulante", "con_actividad", "caotico", "desagradable", "monotono", "sin_actividad", "calmado"];
 
 function panel(version) {
   const coincide = function (r) { return !version || String(r.version) === String(version); };
@@ -227,6 +242,7 @@ function panel(version) {
       origen: origen
     },
     por_punto: porPunto, grupos: grupos, recorridos: rutas, recientes: recientes,
+    atributos: atributosDe(respuestas, personas),
     tiempos: tiemposPromedio(personas, respuestas, puntosDe)
   };
 }

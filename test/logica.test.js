@@ -101,3 +101,25 @@ test("construirEnvio guarda el orden de los atributos y la duración", () => {
   assert.equal(e.parteA.A2_edad, 30);
   assert.equal(e.consentimiento, true);
 });
+
+test("la proyección de los ocho atributos coincide con la ecuación de la ISO/TS 12913-3", () => {
+  const L = require("../logica.js");
+  assert.deepEqual(L.proyeccionISO([3, 3, 3, 3, 3, 3, 3, 3]), { P: 0, E: 0 }, "todo neutro queda en el centro");
+  const casi = (a, b) => assert.ok(Math.abs(a - b) < 1e-9, a + " distinto de " + b);
+  // todo lo agradable al máximo y lo desagradable al mínimo
+  const maximo = L.proyeccionISO([5, 3, 3, 3, 1, 3, 3, 3]);
+  casi(maximo.P, 4 / (4 + Math.sqrt(32))); casi(maximo.E, 0);
+  // orden de los valores: agradable, estimulante, con actividad, caótico, desagradable, monótono, sin actividad, calmado
+  for (let k = 0; k < 200; k++) {
+    const v = Array.from({ length: 8 }, () => 1 + Math.floor(Math.random() * 5));
+    const [p, ve, e, ch, a, m, u, ca] = v, c = Math.SQRT1_2, n = 4 + Math.sqrt(32);
+    const iso = { P: ((p - a) + c * (ca - ch) + c * (ve - m)) / n, E: ((e - u) + c * (ch - ca) + c * (ve - m)) / n };
+    const r = L.proyeccionISO(v);
+    casi(r.P, iso.P); casi(r.E, iso.E);
+    assert.ok(Math.abs(r.P) <= 1 && Math.abs(r.E) <= 1);
+  }
+  const corr = L.proyeccionISO([5, 4, 3, 2, 1, 2, 3, 4], L.ANGULOS.castellano);
+  assert.ok(Math.abs(corr.P) <= 1 && Math.abs(corr.E) <= 1, "con los ángulos del castellano también queda entre -1 y 1");
+  assert.equal(L.proyeccionISO([3, 3, 3, 3, 3, 3, 3]), null, "faltan atributos");
+  assert.equal(L.proyeccionISO([3, 3, 3, 3, 3, 3, 3, 9]), null, "valor fuera de la escala");
+});

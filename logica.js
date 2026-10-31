@@ -136,6 +136,22 @@
     };
   }
 
-  return { ALFABETO, crearRng, barajar, nuevoCodigo, codigoValido, nuevoEnvioId,
+  // Ángulos de los ocho atributos en el orden de la planilla (agradable, estimulante, con actividad, caótico,
+  // desagradable, monótono, sin actividad, calmado). Los teóricos son los de la ISO/TS 12913-2 y los otros los
+  // ajustados para el SATP en castellano (Vida y otros, 2023; Aletta y otros, 2024).
+  const ANGULOS = { iso: [0, 45, 90, 135, 180, 225, 270, 315], castellano: [0, 41, 103, 147, 174, 238, 279, 332] };
+
+  // Agrado (P) y actividad (E) de una respuesta, de -1 a 1. Con los ángulos teóricos es la ecuación de la ISO/TS 12913-3,
+  //   P = [(p - a) + cos45 (ca - ch) + cos45 (v - m)] / (4 + raíz de 32),
+  // y con otros ángulos es la misma proyección, centrada en 3 y normalizada para que el máximo sea 1.
+  function proyeccionISO(valores, angulos) {
+    if (!Array.isArray(valores) || valores.length !== 8 || valores.some((x) => !(x >= 1 && x <= 5))) return null;
+    const ang = (angulos || ANGULOS.iso).map((g) => (g * Math.PI) / 180);
+    const suma = (f) => valores.reduce((s, x, i) => s + (x - 3) * f(ang[i]), 0);
+    const norma = (f) => 2 * ang.reduce((s, a) => s + Math.abs(f(a)), 0);
+    return { P: suma(Math.cos) / norma(Math.cos), E: suma(Math.sin) / norma(Math.sin) };
+  }
+
+  return { ALFABETO, ANGULOS, proyeccionISO, crearRng, barajar, nuevoCodigo, codigoValido, nuevoEnvioId,
            crearAlmacen, crearCola, enviarUno, vaciarCola, construirEnvio };
 });

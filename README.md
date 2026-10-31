@@ -88,3 +88,8 @@ normal y en el modo piloto (`?piloto=1`), y el panel separa los datos por versi�
 
 En la planilla quedan `grupo` y `recorrido` (por ejemplo `ABC`) en la hoja `participantes`, y `orden_en_recorrido`
 (1, 2 o 3) en la hoja `respuestas`.
+
+El panel también dibuja el mapa de agrado (P) y actividad (E) de la norma ISO/TS 12913-3, con un punto por respuesta y un
+color por lugar de escucha, y el promedio de cada lugar. Se puede elegir entre los ángulos teóricos de la ISO y los
+ajustados al castellano (SATP), y filtrar por grupo. Es una vista rápida del avance y no reemplaza el análisis. El cálculo
+está en `logica.js` (`proyeccionISO`) y tiene su prueba en `test/logica.test.js`.

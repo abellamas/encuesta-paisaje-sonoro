@@ -39,6 +39,9 @@
     table { width: 100%; border-collapse: collapse; font-size: 14px; }
     th, td { text-align: left; padding: 5px 6px; border-bottom: 1px solid #e6eaee; }
     .tabla { overflow-x: auto; }
+    .mapa { display: block; width: 100%; max-width: 520px; height: auto; margin: 8px auto; }
+    .leyenda-mapa { display: grid; gap: 4px; font-size: 14px; margin-top: 8px; }
+    .leyenda-mapa i { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
     [hidden] { display: none; }
   </style>
 </head>
@@ -92,6 +95,22 @@
     <div class="datos" id="tiempos"></div>
     <p class="suave" id="nota-tiempos"></p>
 
+    <h2>Mapa de agrado y actividad</h2>
+    <div class="tarjeta">
+      <div class="fila">
+        <label class="suave" for="mapa-angulos">Ángulos</label>
+        <select id="mapa-angulos">
+          <option value="iso">Teóricos (ISO)</option>
+          <option value="castellano">Ajustados al castellano (SATP)</option>
+        </select>
+        <label class="suave" for="mapa-grupo">Grupo</label>
+        <select id="mapa-grupo"><option value="">Todos</option></select>
+      </div>
+      <svg id="mapa" class="mapa" viewBox="0 0 420 420" role="img" aria-label="Respuestas en el plano de agrado y actividad"></svg>
+      <div id="leyenda-mapa" class="leyenda-mapa"></div>
+      <p class="suave" id="nota-mapa"></p>
+    </div>
+
     <h2>Por punto de escucha</h2>
     <div class="datos" id="puntos"></div>
 
@@ -104,13 +123,15 @@
 </main>
 
 <script src="config.js"></script>
+<script src="logica.js"></script>
 <script>
 (function () {
   "use strict";
   const C = window.CONFIG;
   const $ = (id) => document.getElementById(id);
   const guardada = () => { try { return sessionStorage.getItem("clave_admin") || ""; } catch (e) { return ""; } };
-  let clave = guardada(), cargando = false, timer = null, grupoActual = null;
+  let clave = guardada(), cargando = false, timer = null, grupoActual = null, ultimo = null;
+  const COLORES = { 1: "#d55e00", 2: "#0072b2", 3: "#009e73" };
 
   function el(tag, texto, clase) {
     const e = document.createElement(tag);
@@ -146,6 +167,7 @@
 
   function dibujar(d) {
     d.recorridos = d.recorridos || {};
+    d.atributos = d.atributos || [];
     grupoActual = d.grupo_actual;
     $("grupo-actual").textContent = d.grupo_actual == null ? "–" : d.grupo_actual;
     const r = d.resumen, o = r.origen;
@@ -171,6 +193,7 @@
     C.PUNTOS.forEach((p) => { const c = el("div", null, "dato"); c.append(el("b", d.por_punto[p.id] || 0), el("span", p.nombre, "suave")); puntos.append(c); });
 
     dibujarRecorridos(d);
+    ultimo = d; dibujarMapa();
     const grupos = $("grupos"); grupos.replaceChildren();
     if (!d.grupos.length) grupos.append(el("p", "Todavía no hay grupos.", "suave"));
     d.grupos.forEach((g) => {
@@ -235,6 +258,59 @@
     }
   }
 
+  // Cada respuesta con los ocho atributos es un punto del plano. El color dice en qué lugar se hizo.
+  function dibujarMapa() {
+    if (!ultimo) return;
+    const NS = "http://www.w3.org/2000/svg", W = 420, M = 46, L = W - 2 * M;
+    const sel = $("mapa-grupo"), previo = sel.value;
+    sel.replaceChildren(); const todos = el("option", "Todos"); todos.value = ""; sel.append(todos);
+    ultimo.grupos.filter((g) => g.numero).forEach((g) => { const o = el("option", g.nombre); o.value = String(g.numero); sel.append(o); });
+    sel.value = [...sel.options].some((o) => o.value === previo) ? previo : "";
+    const ang = window.Logica.ANGULOS[$("mapa-angulos").value];
+    const fmt = (t) => String(t).replace(".", ",").replace("-", "−");
+    const x = (p) => M + ((p + 1) / 2) * L, y = (e) => W - M - ((e + 1) / 2) * L;
+    const s = (tag, attrs, texto) => { const e = document.createElementNS(NS, tag); Object.keys(attrs || {}).forEach((k) => e.setAttribute(k, attrs[k])); if (texto != null) e.textContent = texto; return e; };
+    const svg = $("mapa"); svg.replaceChildren();
+    svg.append(s("rect", { x: M, y: M, width: L, height: L, fill: "#fff", stroke: "#cfd6de" }));
+    [-1, -0.5, 0, 0.5, 1].forEach((t) => {
+      const eje = t === 0;
+      svg.append(s("line", { x1: x(t), y1: M, x2: x(t), y2: W - M, stroke: eje ? "#5c6670" : "#e6eaee", "stroke-width": eje ? 1.5 : 1 }));
+      svg.append(s("line", { x1: M, y1: y(t), x2: W - M, y2: y(t), stroke: eje ? "#5c6670" : "#e6eaee", "stroke-width": eje ? 1.5 : 1 }));
+      svg.append(s("text", { x: x(t), y: W - M + 16, "text-anchor": "middle", "font-size": 11, fill: "#5c6670" }, fmt(t)));
+      svg.append(s("text", { x: M - 8, y: y(t) + 4, "text-anchor": "end", "font-size": 11, fill: "#5c6670" }, fmt(t)));
+    });
+    [["Caótico", M + 6, M + 16, "start"], ["Vibrante", W - M - 6, M + 16, "end"], ["Monótono", M + 6, W - M - 8, "start"], ["Calmado", W - M - 6, W - M - 8, "end"]]
+      .forEach(([t, px, py, a]) => svg.append(s("text", { x: px, y: py, "text-anchor": a, "font-size": 12, fill: "#9aa5b1", "font-style": "italic" }, t)));
+    svg.append(s("text", { x: W / 2, y: W - 6, "text-anchor": "middle", "font-size": 13, "font-weight": 600, fill: "#2a2f36" }, "Agrado (P)"));
+    svg.append(s("text", { x: 14, y: W / 2, "text-anchor": "middle", "font-size": 13, "font-weight": 600, fill: "#2a2f36", transform: "rotate(-90 14 " + W / 2 + ")" }, "Actividad (E)"));
+
+    const filas = ultimo.atributos.filter((r) => !sel.value || r.grupo === Number(sel.value)), porPunto = {};
+    filas.forEach((r) => {
+      const pe = window.Logica.proyeccionISO(r.valores, ang);
+      if (!pe) return;
+      (porPunto[r.punto] = porPunto[r.punto] || []).push(pe);
+      const c = s("circle", { cx: x(pe.P), cy: y(pe.E), r: 5, fill: COLORES[r.punto] || "#888", "fill-opacity": 0.6, stroke: "#fff", "stroke-width": 0.8 });
+      c.append(s("title", {}, r.codigo + ", " + nombrePunto(r.punto) + ", P " + pe.P.toFixed(2) + ", E " + pe.E.toFixed(2)));
+      svg.append(c);
+    });
+    const ley = $("leyenda-mapa"); ley.replaceChildren();
+    const f2 = (n) => n.toFixed(2).replace(".", ",").replace("-", "−");
+    C.PUNTOS.forEach((p) => {
+      const l = porPunto[p.id] || [], fila = el("div");
+      const punto = el("i"); punto.style.background = COLORES[p.id];
+      fila.append(punto);
+      if (!l.length) fila.append(el("span", p.nombre + " (" + p.letra + "), sin respuestas todavía"));
+      else {
+        const mp = l.reduce((a, b) => a + b.P, 0) / l.length, me = l.reduce((a, b) => a + b.E, 0) / l.length;
+        fila.append(el("span", p.nombre + " (" + p.letra + "), " + l.length + (l.length === 1 ? " respuesta" : " respuestas") + ", promedio P " + f2(mp) + " y E " + f2(me)));
+        svg.append(s("circle", { cx: x(mp), cy: y(me), r: 11, fill: "#fff", "fill-opacity": 0.92, stroke: COLORES[p.id], "stroke-width": 3 }));
+        svg.append(s("text", { x: x(mp), y: y(me) + 4, "text-anchor": "middle", "font-size": 12, "font-weight": 700, fill: COLORES[p.id] }, p.letra));
+      }
+      ley.append(fila);
+    });
+    $("nota-mapa").textContent = "Cada punto chico es la respuesta de una persona en un lugar. El círculo con letra es el promedio de ese lugar. Es una vista rápida del avance, y no reemplaza el análisis. Se muestran solo las respuestas con los ocho atributos completos.";
+  }
+
   async function fijarRecorrido(grupo, valor) {
     const a = $("aviso-recorrido"); a.hidden = true;
     try {
@@ -267,6 +343,8 @@
 
   $("acceso").addEventListener("submit", (e) => { e.preventDefault(); clave = $("clave").value; $("clave").value = ""; $("aviso-acceso").hidden = true; empezar(); });
   $("salir").addEventListener("click", () => salir());
+  $("mapa-angulos").addEventListener("change", dibujarMapa);
+  $("mapa-grupo").addEventListener("change", dibujarMapa);
   $("menos").addEventListener("click", () => fijar((grupoActual || 1) - 1));
   $("mas").addEventListener("click", () => fijar((grupoActual || 0) + 1));
   $("fijar").addEventListener("click", () => fijar($("grupo-nuevo").value));

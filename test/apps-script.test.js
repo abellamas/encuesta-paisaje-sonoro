@@ -219,3 +219,16 @@ test("el panel calcula el tiempo promedio de la Parte A, de cada punto y del rec
   assert.deepEqual(p.tiempos.recorrido_completo, { segundos: 760, n: 1 }, "solo cuenta a quien hizo los tres puntos");
   assert.deepEqual(post({ accion: "panel", clave: "secreta", version: "otra" }).tiempos.parte_a, { segundos: null, n: 0 });
 });
+
+test("el panel devuelve los ocho atributos de las respuestas completas, con el grupo de cada persona", () => {
+  const { post, props } = cargar();
+  props.ADMIN_CLAVE = "secreta";
+  const ocho = { B2_agradable: 5, B2_estimulante: 4, B2_con_actividad: 3, B2_caotico: 2, B2_desagradable: 1, B2_monotono: 2, B2_sin_actividad: 3, B2_calmado: 4 };
+  post(base({ envio_id: "A-1", codigo: "AAA111", punto: 1, version: "v2", parteA: { grupo: 2 }, parteB: Object.assign({ inicio: "2026-10-30T15:00:00.000Z" }, ocho) }));
+  post(base({ envio_id: "A-2", codigo: "AAA111", punto: 2, version: "v2", consentimiento: false, parteA: null, parteB: { inicio: "2026-10-30T15:10:00.000Z", B2_agradable: 5 } }));   // incompleta
+  const p = post({ accion: "panel", clave: "secreta", version: "v2" });
+  assert.equal(p.atributos.length, 1, "solo entra la respuesta con los ocho atributos");
+  assert.deepEqual(p.atributos[0].valores, [5, 4, 3, 2, 1, 2, 3, 4]);
+  assert.equal(p.atributos[0].grupo, 2);
+  assert.equal(p.atributos[0].punto, 1);
+});
