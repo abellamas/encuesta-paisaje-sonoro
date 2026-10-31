@@ -433,6 +433,19 @@
     });
   }
 
+  // Pantalla de cierre, cuando ya hizo los tres puntos y mandó (o salteó) el comentario final.
+  function pantallaFinal() {
+    pantalla = "fin";
+    parar();
+    mostrar(
+      h("div", { class: "fin" },
+        h("div", { class: "fin-check", "aria-hidden": "true" }, "✓"),
+        h("h1", null, "¡Encuesta terminada!"),
+        h("p", { class: "fin-gracias" }, "Muchas gracias por participar."),
+        h("p", { class: "suave" }, "Ya podés cerrar esta página.")));
+    actualizarAviso();
+  }
+
   function pantallaInicioPunto() {
     pantalla = "hub";
     parar();
@@ -444,7 +457,8 @@
     const completos = C.PUNTOS.every((p) => hechos.includes(p.id));
     const sigue = persona.recorrido ? persona.recorrido.find((id) => !hechos.includes(id)) : null;   // el próximo punto del recorrido de su grupo
     actualizarRecorrido();
-    const final = completos && !persona.comentario_enviado;   // la pregunta abierta se hace una sola vez, al terminar el paseo
+    const final = completos && !persona.comentario_enviado;
+    if (completos && !final) return pantallaFinal();   // la pregunta abierta se hace una sola vez, al terminar el paseo
     const ta = h("textarea", { id: "comentario", maxlength: 1000, rows: 5 });
     ta.value = persona.comentario_borrador || "";
     ta.addEventListener("input", () => { persona.comentario_borrador = ta.value; guardar(); });

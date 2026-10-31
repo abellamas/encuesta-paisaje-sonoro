@@ -292,7 +292,8 @@ async function main() {
   assert.equal(recibidos[2].comentario, "Pájaros; me molestó el colectivo");
   assert.equal(recibidos[2].codigo, "ABC234");
   assert.ok(!(await texto()).includes("Pensando en todo el paseo"), "la pregunta no se repite");
-  assert.ok((await texto()).includes("Podés cerrar esta página"));
+  assert.ok((await texto()).includes("¡Encuesta terminada!") && (await texto()).includes("Muchas gracias por participar"), "pantalla de cierre");
+  await captura("17-final");
 
   // 10. modo piloto. Código con PILOTO, versión "piloto", foto debajo y la grabación una sola vez
   await js("localStorage.clear()");

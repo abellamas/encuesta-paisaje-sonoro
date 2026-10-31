@@ -229,13 +229,14 @@
       $("acceso").hidden = true; $("panel").hidden = false;
       try { sessionStorage.setItem("clave_admin", clave); } catch (e) { /* sin almacenamiento */ }
       dibujar(d);
+      try { sessionStorage.setItem("panel_cache", JSON.stringify({ version: v, d })); } catch (e) { /* sin almacenamiento */ }
     } catch (e) {
       $("actualizado").textContent = "No se pudo actualizar. Reintentando…";
     } finally { cargando = false; }
   }
 
   function salir(mensaje) {
-    clave = ""; try { sessionStorage.removeItem("clave_admin"); } catch (e) { /* nada */ }
+    clave = ""; try { sessionStorage.removeItem("clave_admin"); sessionStorage.removeItem("panel_cache"); } catch (e) { /* nada */ }
     clearInterval(timer); $("panel").hidden = true; $("acceso").hidden = false;
     const a = $("aviso-acceso"); a.hidden = !mensaje; a.textContent = mensaje || "";
   }
@@ -349,7 +350,14 @@
   $("mas").addEventListener("click", () => fijar((grupoActual || 0) + 1));
   $("fijar").addEventListener("click", () => fijar($("grupo-nuevo").value));
   if (!C.ENDPOINT) { const a = $("aviso-acceso"); a.hidden = false; a.textContent = "Falta la dirección del script en config.js."; }
-  if (clave) empezar();
+  if (clave) {
+    $("acceso").hidden = true; $("panel").hidden = false;
+    try {
+      const c = JSON.parse(sessionStorage.getItem("panel_cache") || "null");
+      if (c && c.version === $("version").value) dibujar(c.d);
+    } catch (e) { /* sin copia guardada */ }
+    empezar();
+  }
 })();
 </script>
 </body>
