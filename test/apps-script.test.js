@@ -232,3 +232,25 @@ test("el panel devuelve los ocho atributos de las respuestas completas, con el g
   assert.equal(p.atributos[0].grupo, 2);
   assert.equal(p.atributos[0].punto, 1);
 });
+
+test("al aceptar queda el código con su grupo y el panel lo muestra en el grupo antes de que termine nada", () => {
+  const { post, props, hojas } = cargar();
+  props.ADMIN_CLAVE = "secreta";
+  assert.equal(post({ token: TOKEN, tipo: "alta", envio_id: "ALTA1", codigo: "AAA111", version: "v2", grupo: 3 }).ok, true);
+  assert.equal(post({ token: TOKEN, tipo: "alta", envio_id: "ALTA1b", codigo: "AAA111", version: "v2", grupo: 3 }).duplicado, true, "no se repite");
+  post({ token: TOKEN, tipo: "alta", envio_id: "ALTA2", codigo: "BBB222", version: "v2", grupo: 3 });
+  post({ token: TOKEN, tipo: "alta", envio_id: "ALTA3", codigo: "CCC333", version: "v2", grupo: null });
+  assert.equal(hojas.consentimientos.filas.length, 4, "encabezado y tres aceptaciones");
+  assert.equal(hojas.respuestas, undefined, "no escribe nada en las respuestas");
+  assert.equal(hojas.participantes, undefined, "ni en los participantes");
+  // AAA111 termina su primer punto y el consentimiento no se vuelve a escribir
+  post(base({ envio_id: "R1", codigo: "AAA111", punto: 1, version: "v2", consentimiento: true, parteA: { grupo: 3, A2_edad: 30 }, parteB: { inicio: "2026-10-30T15:00:00.000Z" } }));
+  assert.equal(hojas.consentimientos.filas.length, 4);
+  const p = post({ accion: "panel", clave: "secreta", version: "v2" });
+  assert.equal(p.resumen.aceptaron, 3);
+  assert.equal(p.resumen.personas, 1);
+  const g3 = p.grupos.find((g) => g.nombre === "Grupo 3");
+  assert.deepEqual(g3.personas.map((x) => x.codigo).sort(), ["AAA111", "BBB222"], "BBB222 aparece sin haber terminado nada");
+  assert.deepEqual(g3.personas.find((x) => x.codigo === "BBB222").puntos, []);
+  assert.ok(p.grupos.some((g) => g.personas.some((x) => x.codigo === "CCC333")), "quien no recibió grupo aparece aparte");
+});

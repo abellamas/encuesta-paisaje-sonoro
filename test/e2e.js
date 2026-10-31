@@ -16,7 +16,7 @@ const CHROME = [
   "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"
 ].find((p) => fs.existsSync(p));
 
-const recibidos = [];
+const recibidos = [], altas = [];   // las altas son el aviso de que alguien aceptó, con su código y su grupo
 let falla = false;       // simula que no hay señal
 const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css", ".png": "image/png", ".jpg": "image/jpeg", ".mp3": "audio/mpeg" };
 
@@ -31,6 +31,7 @@ const servidor = http.createServer((req, res) => {
     req.on("end", () => {
       if (falla) { res.writeHead(503); return res.end("sin servicio"); }
       const d = JSON.parse(cuerpo);
+      if (d.tipo === "alta") { altas.push(d); res.setHeader("Content-Type", "application/json"); return res.end(JSON.stringify({ ok: true })); }
       if (!recibidos.some((r) => r.envio_id === d.envio_id)) recibidos.push(d);
       res.setHeader("Content-Type", "application/json");
       res.end(JSON.stringify({ ok: true }));
@@ -239,6 +240,7 @@ async function main() {
   assert.deepEqual(Object.keys(e.parteA).filter((k) => !k.startsWith("t_") && k !== "grupo" && k !== "recorrido"), claves(Q.parteA), "Parte A fuera de orden");
   assert.equal(e.parteB.orden_en_recorrido, 1, "primer punto del recorrido");
   assert.equal(recibidos[1].parteB.orden_en_recorrido, 2, "segundo punto del recorrido");
+  assert.ok(altas.some((a) => a.codigo === e.codigo && a.grupo === 2 && !("A2_edad" in a)), "al aceptar se avisa el código y el grupo, sin respuestas");
   assert.equal(e.parteA.grupo, 2, "el número de grupo viene del panel y se guarda con la Parte A");
   assert.ok(["A3_genero_otro", "A5_problema_audicion_otro", "A6_riesgo_auditivo_otro"].every((k) => k in e.parteA), "las columnas _otro llegan siempre");
   assert.ok(Object.keys(e.parteA).some((k) => k === "t_A_total_s") && e.parteA.t_A_total_s >= 0, "faltan los tiempos de la Parte A");

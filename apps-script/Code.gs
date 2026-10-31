@@ -41,6 +41,12 @@ function doPost(e) {
     if (!d.envio_id || !d.codigo) return salida({ ok: false, error: "faltan_datos" });
 
     const ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (d.tipo === "alta") {   // la persona aceptó participar. Solo el código anónimo y el grupo
+      const hojaK = hoja(ss, HOJA_CONSENTIMIENTOS);
+      if (existe(hojaK, "codigo", d.codigo)) return salida({ ok: true, duplicado: true });
+      agregarFila(hojaK, { recibido: new Date(), codigo: d.codigo, version: d.version, grupo: d.grupo });
+      return salida({ ok: true });
+    }
     if (d.tipo === "comentario") {
       const hojaC = hoja(ss, HOJA_COMENTARIOS);
       if (existe(hojaC, "envio_id", d.envio_id)) return salida({ ok: true, duplicado: true });
@@ -53,7 +59,7 @@ function doPost(e) {
     if (existe(hojaR, "envio_id", d.envio_id)) return salida({ ok: true, duplicado: true });
 
     const ahora = new Date();
-    if (d.consentimiento) {
+    if (d.consentimiento && !existe(hoja(ss, HOJA_CONSENTIMIENTOS), "codigo", d.codigo)) {   // si ya avisó al aceptar, no se repite
       agregarFila(hoja(ss, HOJA_CONSENTIMIENTOS), { recibido: ahora, codigo: d.codigo, version: d.version, punto: d.punto });
     }
     if (d.parteA && !existe(hoja(ss, HOJA_PARTICIPANTES), "codigo", d.codigo)) {
@@ -187,6 +193,7 @@ function panel(version) {
   const personas = leerHoja(HOJA_PARTICIPANTES).filter(coincide);
   const respuestas = leerHoja(HOJA_RESPUESTAS).filter(coincide).filter(function (r) { return r.punto !== "" && r.punto != null; });
   const comentarios = leerHoja(HOJA_COMENTARIOS).filter(coincide);
+  const altas = leerHoja(HOJA_CONSENTIMIENTOS).filter(coincide);   // quienes aceptaron, hayan terminado algo o no
 
   const puntosDe = {};   // código -> puntos que respondió
   respuestas.forEach(function (r) {
@@ -205,6 +212,15 @@ function panel(version) {
     const n = Number(p.grupo);
     if (p.grupo !== "" && p.grupo != null && n > 0) (asignados[n] = asignados[n] || []).push(p.codigo);
     else sinNumero.push(p.codigo);
+  });
+  // quienes aceptaron y todavía no terminaron la Parte A también forman parte de su grupo
+  const conParteA = {};
+  personas.forEach(function (p) { conParteA[p.codigo] = true; });
+  altas.forEach(function (a) {
+    if (conParteA[a.codigo]) return;
+    const n = Number(a.grupo);
+    if (a.grupo !== "" && a.grupo != null && n > 0) (asignados[n] = asignados[n] || []).push(a.codigo);
+    else sinNumero.push(a.codigo);
   });
   // orden real en que cada persona hizo los puntos, por la hora de inicio de cada uno
   const ordenDe = {};
@@ -235,6 +251,7 @@ function panel(version) {
   return {
     grupo_actual: g ? Number(g) : null,
     resumen: {
+      aceptaron: altas.length,
       personas: personas.length,
       completaron_todo: Object.keys(puntosDe).filter(function (c) { return puntosDe[c].length >= 3; }).length,
       respuestas: respuestas.length,

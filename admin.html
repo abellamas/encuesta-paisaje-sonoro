@@ -172,7 +172,7 @@
     $("grupo-actual").textContent = d.grupo_actual == null ? "–" : d.grupo_actual;
     const r = d.resumen, o = r.origen;
     const datos = $("datos"); datos.replaceChildren();
-    [["Personas", r.personas], ["Completaron los 3 puntos", r.completaron_todo], ["Respuestas de puntos", r.respuestas], ["Comentarios finales", r.comentarios],
+    [["Aceptaron", r.aceptaron], ["Terminaron la Parte A", r.personas], ["Completaron los 3 puntos", r.completaron_todo], ["Respuestas de puntos", r.respuestas], ["Comentarios finales", r.comentarios],
      ["Invitadas con cita previa", o.invitado], ["Se sumaron en el lugar", o.en_el_lugar]].forEach(([t, n]) => {
       const c = el("div", null, "dato"); c.append(el("b", n), el("span", t, "suave")); datos.append(c);
     });
@@ -204,7 +204,7 @@
       const chips = el("div", null, "chips");
       g.personas.forEach((p) => {
         const chip = el("span", p.codigo, g.recorrido && p.desvio ? "chip desvio" : "chip");
-        const hechos = p.orden.length ? flecha(p.orden) : "sin puntos";
+        const hechos = p.orden.length ? flecha(p.orden) : "aceptó, sin puntos todavía";
         chip.append(el("small", g.recorrido && p.desvio ? hechos + " ⚠ no es el recorrido" : hechos));
         chips.append(chip);
       });

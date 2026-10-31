@@ -400,7 +400,12 @@
       persona.consintio = true;
       persona.t = nuevoT(); persona.t.sesion_inicio = Date.now();
       guardar();
-      pedirGrupo();
+      // Primero se pide el grupo y después se avisa de la aceptación, con el código y el grupo, para que el panel
+      // muestre quiénes son los participantes de cada grupo apenas aceptan. No lleva ninguna respuesta.
+      pedirGrupo().then(() => {
+        cola.agregar({ envio_id: L.nuevoEnvioId(rng), tipo: "alta", version: VERSION, codigo: persona.codigo, grupo: persona.grupo || null });
+        reintentar();
+      });
       siguientePantalla();
     } }, "Comenzar");
     chk.addEventListener("change", () => { btn.disabled = !chk.checked; });
