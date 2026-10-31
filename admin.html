@@ -336,7 +336,7 @@
     actualizar(); timer = setInterval(actualizar, 15000);
   }
 
-  const versiones = [["", "Todas"], ["piloto", "piloto"], ["dummy", "dummy"], [C.VERSION, C.VERSION]];
+  const versiones = [[C.VERSION, "In situ"], ["piloto", "Piloto"], ["dummy", "Dummy"], ["", "Todas"]];   // In situ es la encuesta real de campo y es la que se abre
   versiones.forEach(([v, t]) => { const o = el("option", t); o.value = v; $("version").append(o); });
   $("version").value = C.VERSION;
   $("version").addEventListener("change", actualizar);
