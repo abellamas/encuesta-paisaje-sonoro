@@ -2,7 +2,7 @@
 
 Uso
     python analisis/exportar_para_jasp.py participantes.csv respuestas.csv [comentarios.csv]
-           [--version 2026-10-v2] [--salida carpeta]
+           [--version 2026-10-v5] [--salida carpeta]
 
 Los CSV se bajan de la planilla, una hoja por vez (Archivo, Descargar, Valores separados por comas).
 Genera dos archivos en la carpeta de salida (por defecto, la de los CSV).

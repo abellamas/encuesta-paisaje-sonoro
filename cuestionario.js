@@ -43,7 +43,10 @@ window.Cuestionario = (function () {
         { v: "varias_por_semana", t: "Varias veces por semana" }, { v: "todos_los_dias", t: "Todos los días" }] },
       { id: "A10_origen", tipo: "opcion", texto: "¿Cómo llegaste a participar de esta encuesta?", opciones: [
         { v: "invitado", t: "Me invitaron a participar con cita previa" },
-        { v: "en_el_lugar", t: "Me encontraba en el parque y acepté participar" }] }
+        { v: "en_el_lugar", t: "Me encontraba en el parque y acepté participar" }] },
+      { id: "A11_residencia", tipo: "opcion", texto: "¿Hace cuánto vivís en CABA o en el Gran Buenos Aires?", opciones: [
+        { v: "no_vive", t: "No vivo en CABA ni en el Gran Buenos Aires" }, { v: "menos_1", t: "Menos de 1 año" },
+        { v: "1_a_5", t: "Entre 1 y 5 años" }, { v: "mas_5", t: "Más de 5 años" }, { v: "toda_la_vida", t: "Toda mi vida" }] }
     ] },
     { id: "pa2", titulo: "Parte A. Audición", preguntas: [
       { id: "A5_problema_audicion", tipo: "opcion", texto: "¿Tenés algún problema de audición que conozcas?", enFila: true, opciones: [
@@ -99,7 +102,7 @@ window.Cuestionario = (function () {
     ] },
     { id: "pb4", preguntas: [
       { id: "B7", tipo: "escala",
-        texto: "Indicá tu grado de acuerdo con que el paisaje sonoro que estás oyendo ahora…",
+        texto: "Indicá tu grado de acuerdo con las siguientes afirmaciones sobre el paisaje sonoro que estás oyendo ahora.",
         opciones: [   // palabras de la versión validada en castellano (Güngörmüş y otros, 2026, Tabla 1)
           { v: 0, t: "Nada" }, { v: 1, t: "Muy poco" }, { v: 2, t: "Un poco" }, { v: 3, t: "Algo" },
           { v: 4, t: "Bastante" }, { v: 5, t: "Mucho" }, { v: 6, t: "Completamente" }],

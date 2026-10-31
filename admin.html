@@ -145,6 +145,7 @@
   function hora(v) { const d = new Date(v); return isNaN(d) ? "" : d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }); }
 
   function dibujar(d) {
+    d.recorridos = d.recorridos || {};
     grupoActual = d.grupo_actual;
     $("grupo-actual").textContent = d.grupo_actual == null ? "–" : d.grupo_actual;
     const r = d.resumen, o = r.origen;
@@ -155,13 +156,17 @@
     });
     const tiempos = $("tiempos"); tiempos.replaceChildren();
     const tp = d.tiempos;
-    [["Parte A", tp.parte_a], ["Parte B, por punto", tp.parte_b]]
-      .concat(C.PUNTOS.map((p) => ["Parte B en " + p.nombre, tp.por_punto[p.id]]))
-      .concat([["Recorrido completo", tp.recorrido_completo]]).forEach(([t, v]) => {
-        const c = el("div", null, "dato");
-        c.append(el("b", v && v.segundos != null ? minseg(v.segundos) : "–"), el("span", t + (v && v.n ? " (" + v.n + ")" : ""), "suave")); tiempos.append(c);
-      });
-    $("nota-tiempos").textContent = "Es el tiempo con la pantalla abierta, sin contar las pausas. Entre paréntesis, la cantidad de datos. El recorrido completo suma la Parte A y los tres puntos de quienes los hicieron.";
+    if (!tp) {
+      $("nota-tiempos").textContent = "El script de Google todavía no calcula los tiempos. Pegá el Code.gs nuevo en Apps Script y publicá una versión nueva de la implementación.";
+    } else {
+      [["Parte A", tp.parte_a], ["Parte B, por punto", tp.parte_b]]
+        .concat(C.PUNTOS.map((p) => ["Parte B en " + p.nombre, tp.por_punto[p.id]]))
+        .concat([["Recorrido completo", tp.recorrido_completo]]).forEach(([t, v]) => {
+          const c = el("div", null, "dato");
+          c.append(el("b", v && v.segundos != null ? minseg(v.segundos) : "–"), el("span", t + (v && v.n ? " (" + v.n + ")" : ""), "suave")); tiempos.append(c);
+        });
+      $("nota-tiempos").textContent = "Es el tiempo con la pantalla abierta, sin contar las pausas. Entre paréntesis, la cantidad de datos. El recorrido completo suma la Parte A y los tres puntos de quienes los hicieron.";
+    }
     const puntos = $("puntos"); puntos.replaceChildren();
     C.PUNTOS.forEach((p) => { const c = el("div", null, "dato"); c.append(el("b", d.por_punto[p.id] || 0), el("span", p.nombre, "suave")); puntos.append(c); });
 
